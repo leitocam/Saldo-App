@@ -22,3 +22,9 @@ Las cotizaciones dependen de Binance. Un fallo conserva la última referencia, m
 El 28 de septiembre de 2026 a las 15:27 de Bolivia se ejecutó `fetchQuote` del código de la aplicación contra Binance, sin simular la respuesta. USDT/BOB, perspectiva SELL, cantidad 100 USDT y umbrales predeterminados: estado `available`, cinco comerciantes distintos y mediana Bs 11,95 tanto sin filtro bancario como con BancoDeBolivia (BNB). Es una muestra puntual, no un precio garantizado. El registro personal de compras y ventas sigue siendo manual; no hay conexión con el saldo ni el historial privado de Binance.
 
 La consulta en vivo anterior salió de este equipo. La API de métodos de pago también se comprobó en Vercel. La cotización desde Vercel con los filtros del propietario y su almacenamiento en Supabase requieren una sesión personal; ese recorrido no se sustituye por la prueba local.
+
+## Corrección del acceso privado
+
+El registro mostraba `[object Object]` al recibir la respuesta estructurada de protección de Vercel. Se reprodujo el HTTP 401 con `error.message = Protected deployment`; esa solicitud no llega al formulario de autenticación de Supabase. El cliente ahora reconoce la protección, muestra instrucciones y permite recargar para autorizar Vercel. También maneja respuestas HTML y errores estructurados sin confundirlos con un acceso correcto.
+
+Verificación de esta corrección: compilación de producción y TypeScript correctos, 35 pruebas unitarias/de integración aprobadas y cuatro recorridos de autenticación aprobados entre celular y escritorio. Los recorridos reproducen el bloqueo de Vercel y la confirmación pendiente con respuestas controladas; no crean una contraseña ni una cuenta personal. El usuario debe recargar, autorizar Vercel y continuar su registro.

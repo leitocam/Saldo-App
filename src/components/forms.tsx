@@ -28,6 +28,7 @@ import type {
   FinanceState,
 } from "@/lib/types";
 import type { PaymentMethod } from "@/lib/p2p";
+import { AuthResponseError, readAuthResponse } from "@/lib/auth-response";
 export function MovementForm({
   initial,
   onClose,
@@ -1381,7 +1382,8 @@ export function AuthForm() {
     [password, setPassword] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [confirmation, setConfirmation] = useState(false);
+    [confirmation, setConfirmation] = useState(false),
+    [requiresVercel, setRequiresVercel] = useState(false);
   return (
     <div className="auth-screen">
       <div className="auth-art">
@@ -1405,8 +1407,11 @@ export function AuthForm() {
         className="auth-form form-stack"
         onSubmit={async (e) => {
           e.preventDefault();
+          if (busy) return;
           setBusy(true);
           setError("");
+          setRequiresVercel(false);
+          setConfirmation(false);
           try {
             const response = await fetch("/api/auth", {
               method: "POST",
@@ -1417,12 +1422,18 @@ export function AuthForm() {
                 action: signup ? "signup" : "signin",
               }),
             });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error);
+            const result = await readAuthResponse(response);
             if (result.confirmation) setConfirmation(true);
             else await refreshAuth();
           } catch (e) {
-            setError((e as Error).message);
+            setRequiresVercel(
+              e instanceof AuthResponseError && e.requiresVercel,
+            );
+            setError(
+              e instanceof AuthResponseError
+                ? e.message
+                : "No se pudo conectar. Comprueba tu conexión e inténtalo de nuevo.",
+            );
           } finally {
             setBusy(false);
           }
@@ -1457,6 +1468,11 @@ export function AuthForm() {
           />
         </Field>
         <ErrorMessage error={error} />
+        {requiresVercel && (
+          <Button className="full" onClick={() => window.location.reload()}>
+            Autorizar acceso
+          </Button>
+        )}
         {confirmation && (
           <p className="form-callout">
             Revisa tu correo para confirmar el acceso antes de iniciar sesión.
@@ -1477,7 +1493,12 @@ export function AuthForm() {
         <button
           type="button"
           className="text-button"
-          onClick={() => setSignup(!signup)}
+          onClick={() => {
+            setSignup(!signup);
+            setError("");
+            setRequiresVercel(false);
+            setConfirmation(false);
+          }}
         >
           {signup ? "Ya tengo una cuenta" : "Crear mi acceso"}
         </button>
