@@ -48,6 +48,8 @@ Encabezado personal y selector de mes. Tarjeta de patrimonio con un degradado gr
 
 En escritorio, patrimonio y resumen forman dos columnas. Movimientos y distribución de gastos comparten otra fila. En móvil, el orden es vertical y las cuentas pueden recorrerse horizontalmente dentro de su propio carrusel.
 
+La barra superior conserva una salida visible en todas las secciones: «Salir de la demo» en demostración y «Cerrar sesión» en la cuenta privada. El botón combina icono y texto y mide al menos 44 px de alto. En celular, el indicador de conexión se compacta a un icono con nombre accesible para que la salida quepa desde 360 px.
+
 ### Registrar un gasto
 
 Panel inferior en móvil y diálogo centrado en escritorio. Primero se ve el tipo y el importe; después, categorías en tres columnas, cuenta y fecha, descripción y comisiones opcionales. La categoría elegida lleva contorno y marca circular. Guardar permanece como la acción más visible. Los errores aparecen junto al formulario sin eliminar lo escrito.

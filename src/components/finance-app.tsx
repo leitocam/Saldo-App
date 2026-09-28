@@ -117,7 +117,8 @@ export function FinanceApp() {
     [hidden, setHidden] = useState(false),
     [settingsTab, setSettingsTab] = useState("categories"),
     [quoteBusy, setQuoteBusy] = useState(false),
-    [quoteError, setQuoteError] = useState("");
+    [quoteError, setQuoteError] = useState(""),
+    [sessionBusy, setSessionBusy] = useState(false);
   const b = useMemo(() => balances(state), [state]),
     wallet = useMemo(() => inventory(state.movements), [state.movements]),
     quote = latestQuote(state),
@@ -140,6 +141,24 @@ export function FinanceApp() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const edit = (m: Movement) => setModal({ type: "movement", initial: m });
+  const leaveWorkspace = async () => {
+    if (sessionBusy) return;
+    setSessionBusy(true);
+    try {
+      if (mode === "demo") await ctx.exitDemo();
+      else await ctx.signOut();
+      setModal(null);
+      changePage("home");
+    } catch (e) {
+      notify(
+        e instanceof Error
+          ? e.message
+          : "No se pudo salir. Inténtalo de nuevo.",
+      );
+    } finally {
+      setSessionBusy(false);
+    }
+  };
   const entity = (
     e: Entity,
     initial?: Account | Category | Goal | Budget | Recurring | Profile | Quote,
@@ -358,6 +377,7 @@ export function FinanceApp() {
           <div className="topbar-actions">
             <button
               className={`connection-chip ${!online || pending.length ? "warning" : ""}`}
+              aria-label={`Estado de conexión: ${!online ? "sin conexión" : pending.length ? `${pending.length} pendientes` : mode === "cloud" ? "sincronizado" : mode === "demo" ? "demostración" : "guardado local"}`}
               onClick={() => setModal({ type: "sync" })}
             >
               <Icon
@@ -378,6 +398,19 @@ export function FinanceApp() {
                         : "Guardado local"}
               </span>
             </button>
+            {(mode === "demo" || mode === "cloud") && (
+              <button
+                className="session-exit"
+                type="button"
+                disabled={sessionBusy}
+                onClick={() => void leaveWorkspace()}
+              >
+                <Icon name="LogOut" size={16} />
+                <span>
+                  {mode === "demo" ? "Salir de la demo" : "Cerrar sesión"}
+                </span>
+              </button>
+            )}
             <button
               className="icon-btn mobile-settings"
               aria-label="Ajustes"
@@ -1211,9 +1244,8 @@ export function FinanceApp() {
                   {mode === "cloud" && (
                     <Button
                       icon="LogOut"
-                      onClick={() =>
-                        ctx.signOut().catch((e) => notify(e.message))
-                      }
+                      disabled={sessionBusy}
+                      onClick={() => void leaveWorkspace()}
                     >
                       Cerrar sesión
                     </Button>

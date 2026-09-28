@@ -6,6 +6,8 @@ Finanzas personales en BOB y seguimiento de ahorro en USDT. Aplicación Next.js 
 
 Código: [leitocam/Saldo-App](https://github.com/leitocam/Saldo-App). El proyecto Vercel `saldo-finanzas` está conectado directamente a este repositorio. Un `git push origin main` publica en la dirección estable anterior; las otras ramas generan vistas previas. Las variables de Supabase y `OWNER_EMAIL` están configuradas en Preview y Production, fuera del repositorio. Las migraciones de base de datos requieren su aplicación explícita; el despliegue de Next.js no las ejecuta.
 
+La barra superior permite **Salir de la demo** para volver al login. En la cuenta privada muestra **Cerrar sesión**, que cierra la sesión de este dispositivo y limpia su copia local privada cuando no quedan registros pendientes. Los datos confirmados permanecen en Supabase.
+
 ## Ejecutar
 
 Se recomienda Node.js 24 LTS. Instala dependencias con `npm ci` y ejecuta `npm run dev`. Abre `http://localhost:3000`.

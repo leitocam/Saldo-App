@@ -28,3 +28,9 @@ La consulta en vivo anterior salió de este equipo. La API de métodos de pago t
 El registro mostraba `[object Object]` al recibir la respuesta estructurada de protección de Vercel. Se reprodujo el HTTP 401 con `error.message = Protected deployment`; esa solicitud no llega al formulario de autenticación de Supabase. El cliente ahora reconoce la protección, muestra instrucciones y permite recargar para autorizar Vercel. También maneja respuestas HTML y errores estructurados sin confundirlos con un acceso correcto.
 
 Verificación de esta corrección: compilación de producción y TypeScript correctos, 35 pruebas unitarias/de integración aprobadas y cuatro recorridos de autenticación aprobados entre celular y escritorio. Los recorridos reproducen el bloqueo de Vercel y la confirmación pendiente con respuestas controladas; no crean una contraseña ni una cuenta personal. El usuario debe recargar, autorizar Vercel y continuar su registro.
+
+## Salir de la demo y cerrar sesión
+
+Se añadieron botones visibles en la barra superior de celular y escritorio. Salir de la demo abre el login y recuerda esa selección al recargar. Cerrar sesión usa el alcance local de Supabase, limpia la copia privada del dispositivo y conserva el bloqueo ante operaciones pendientes. Las respuestas de sincronización que llegan después de la salida no restauran el espacio anterior.
+
+Ocho recorridos de autenticación aprobados verifican los errores de acceso anteriores, demo → login → recarga → demo y el cierre con una copia privada sin conexión en ambos tamaños. La demostración también se revisó a 360 px sin desbordes. El recorrido de cierre utiliza un espacio sintético en IndexedDB, sin crear usuarios ni modificar datos reales en Supabase; la revocación remota se delega al SDK de Supabase con `scope: local`.

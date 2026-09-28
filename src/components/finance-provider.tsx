@@ -30,6 +30,7 @@ type Context = {
   refreshAuth: () => Promise<void>;
   notify: (m: string, action?: () => Promise<void>) => void;
   signOut: () => Promise<void>;
+  exitDemo: () => Promise<void>;
   discardPending: (id: string) => Promise<void>;
 };
 const FinanceContext = createContext<Context | null>(null);
@@ -84,7 +85,12 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     [],
   );
   const sync = useCallback(async () => {
-    if (ref.current.mode !== "cloud" || !navigator.onLine || syncing.current)
+    if (
+      ref.current.mode !== "cloud" ||
+      !ref.current.user ||
+      !navigator.onLine ||
+      syncing.current
+    )
       return;
     syncing.current = true;
     const syncUser = ref.current.user;
@@ -144,6 +150,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           notify("La nube aún no está configurada. Puedes usar el modo local.");
           return;
         }
+        localStorage.setItem("saldo-mode", "cloud");
         try {
           const {
             data: { user },
@@ -273,20 +280,43 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     },
     [commit, sync],
   );
+  const openLogin = useCallback(() => {
+    const empty = emptyState();
+    localStorage.setItem("saldo-mode", "cloud");
+    ref.current = { state: empty, pending: [], user: "", mode: "cloud" };
+    setState(empty);
+    setPending([]);
+    setUserId("");
+    setMode("cloud");
+    setMessage("");
+    setUndoAction(null);
+    setAuthRequired(true);
+  }, []);
+  const exitDemo = useCallback(async () => {
+    if (ref.current.mode !== "demo") return;
+    await persistence.current;
+    openLogin();
+  }, [openLogin]);
   const signOut = useCallback(async () => {
     if (ref.current.pending.length)
       throw new Error(
         "Sincroniza o revisa tus registros pendientes antes de salir.",
       );
-    if (cloudConfigured()) await browserSupabase().auth.signOut();
-    await persistence.current;
-    await clearWorkspace(ref.current.user);
+    const currentUser = ref.current.user;
+    if (cloudConfigured()) {
+      const { error } = await browserSupabase().auth.signOut({
+        scope: "local",
+      });
+      if (error)
+        throw new Error(
+          "No se pudo cerrar sesión. Comprueba tu conexión e inténtalo de nuevo.",
+        );
+    }
+    openLogin();
     localStorage.removeItem("saldo-last-user");
-    localStorage.setItem("saldo-mode", "cloud");
-    setAuthRequired(true);
-    setState(emptyState());
-    ref.current = { state: emptyState(), pending: [], user: "", mode: "cloud" };
-  }, []);
+    await persistence.current;
+    await clearWorkspace(currentUser);
+  }, [openLogin]);
   const discardPending = useCallback(
     async (id: string) => {
       const current = ref.current;
@@ -322,6 +352,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         refreshAuth,
         notify,
         signOut,
+        exitDemo,
         discardPending,
       }}
     >
