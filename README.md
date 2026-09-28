@@ -2,7 +2,7 @@
 
 Finanzas personales en BOB y seguimiento de ahorro en USDT. Aplicación Next.js / TypeScript, móvil primero, instalable y con almacenamiento sin conexión.
 
-[Abrir Saldo](https://saldo-finanzas-nine.vercel.app). Requiere acceso de Vercel; después crea tu acceso personal.
+[Abrir Saldo](https://saldo-finanzas-nine.vercel.app). El enlace es público y no requiere una cuenta de Vercel. Los datos financieros requieren iniciar sesión en Saldo; también puedes explorar la demostración.
 
 Código: [leitocam/Saldo-App](https://github.com/leitocam/Saldo-App). El proyecto Vercel `saldo-finanzas` está conectado directamente a este repositorio. Un `git push origin main` publica en la dirección estable anterior; las otras ramas generan vistas previas. Las variables de Supabase y `OWNER_EMAIL` están configuradas en Preview y Production, fuera del repositorio. Las migraciones de base de datos requieren su aplicación explícita; el despliegue de Next.js no las ejecuta.
 
@@ -35,7 +35,7 @@ Abre una vez con internet para instalar el service worker y almacenar los recurs
 
 ## Conectar la nube
 
-El proyecto dedicado provisionado es `saldo-finanzas` (`juwusslvhwycmudynqln`), en Leo_Personal. Las migraciones ya están aplicadas. La vista previa exige acceso de Vercel y la aplicación restringe el correo a su propietario mediante `OWNER_EMAIL`. Para empezar, usa **Crear mi acceso**, el correo acordado y una contraseña propia; confirma el correo y configura tus saldos. No se han cargado finanzas reales ni creado la contraseña del propietario.
+El proyecto dedicado provisionado es `saldo-finanzas` (`juwusslvhwycmudynqln`), en Leo_Personal. Las migraciones ya están aplicadas. El enlace público abre la aplicación y su demostración; el acceso a la nube está restringido al correo del propietario mediante `OWNER_EMAIL`. Para empezar, usa **Crear mi acceso**, el correo acordado y una contraseña propia; confirma el correo y configura tus saldos.
 
 1. Crea un proyecto Supabase **dedicado**. La organización y el costo deben elegirse antes de provisionarlo. No aplicar esta migración a una aplicación existente.
 2. Aplica todas las migraciones de `supabase/migrations` al proyecto nuevo, en orden. Con la CLI autenticada: `npx supabase link --project-ref TU_PROJECT_REF`, seguido de `npx supabase db push`.
