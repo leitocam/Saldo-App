@@ -37,6 +37,16 @@ Ocho recorridos de autenticación aprobados verifican los errores de acceso ante
 
 ## Enlace público
 
-El 28 de septiembre de 2026 se desactivó Vercel Authentication en `saldo-finanzas` por solicitud del propietario. La página y la demostración pueden abrirse sin una cuenta de Vercel. La autenticación de Saldo, la restricción del correo del propietario y las políticas RLS se mantienen.
+El 28 de septiembre de 2026 se desactivó Vercel Authentication en `saldo-finanzas` por solicitud del propietario. La página y la demostración pueden abrirse sin una cuenta de Vercel. En ese momento se mantenían la autenticación de Saldo, la restricción al correo del propietario y las políticas RLS. Después se habilitaron cuentas independientes con otros correos, como se describe a continuación.
 
 Verificación mediante solicitudes anónimas, sin cookies ni bypass de Vercel: `GET https://saldo-finanzas-nine.vercel.app/` devuelve HTTP 200 sin redirección; `GET /api/state` devuelve HTTP 401 con «Inicia sesión para continuar». La apertura del enlace no concede acceso a los datos personales. Los enlaces de confirmación de correo vencidos siguen sujetos a la validación de Supabase Auth.
+
+## Registro con otros correos
+
+Se retiró la restricción `OWNER_EMAIL` del registro, el login y las rutas autenticadas, y se eliminaron sus variables de Vercel. El propietario eligió explícitamente registro directo sin confirmación; se aplicó únicamente `auth.email.enable_confirmations = false` al proyecto dedicado. La consulta de Auth verifica registro habilitado y `mailer_autoconfirm = true`. Cada correo crea un espacio independiente; no se fusionan finanzas automáticamente.
+
+Compilación de producción con TypeScript correcta y 40 pruebas unitarias/de integración aprobadas. Cinco pruebas nuevas comprueban registro y login con otro correo, acceso autenticado, rechazo anónimo y validación de la acción, incluso si queda una variable antigua de propietario.
+
+Se probó la API de la compilación local contra Supabase real con dos cuentas temporales: registro con sesión inmediata, espacios iniciales vacíos, configuración independiente, lectura aislada, rechazo de la edición de una cuenta ajena, cierre y nuevo login, y HTTP 401 anónimo. Se cerraron las sesiones de prueba y se eliminaron exclusivamente esas dos cuentas y sus datos; una consulta confirmó cero usuarios de esa prueba restantes. No se crearon contraseñas para las cuentas personales.
+
+Los ocho recorridos de autenticación en navegador quedaron aprobados entre celular y escritorio. El primer recorrido de cierre de escritorio superó el límite de tiempo durante una ejecución lenta; su traza mostró las comprobaciones completadas y su repetición aislada pasó en 2,6 segundos.

@@ -4,7 +4,7 @@ Finanzas personales en BOB y seguimiento de ahorro en USDT. Aplicación Next.js 
 
 [Abrir Saldo](https://saldo-finanzas-nine.vercel.app). El enlace es público y no requiere una cuenta de Vercel. Los datos financieros requieren iniciar sesión en Saldo; también puedes explorar la demostración.
 
-Código: [leitocam/Saldo-App](https://github.com/leitocam/Saldo-App). El proyecto Vercel `saldo-finanzas` está conectado directamente a este repositorio. Un `git push origin main` publica en la dirección estable anterior; las otras ramas generan vistas previas. Las variables de Supabase y `OWNER_EMAIL` están configuradas en Preview y Production, fuera del repositorio. Las migraciones de base de datos requieren su aplicación explícita; el despliegue de Next.js no las ejecuta.
+Código: [leitocam/Saldo-App](https://github.com/leitocam/Saldo-App). El proyecto Vercel `saldo-finanzas` está conectado directamente a este repositorio. Un `git push origin main` publica en la dirección estable anterior; las otras ramas generan vistas previas. Las variables de Supabase están configuradas en Preview y Production, fuera del repositorio. Las migraciones de base de datos requieren su aplicación explícita; el despliegue de Next.js no las ejecuta.
 
 La barra superior permite **Salir de la demo** para volver al login. En la cuenta privada muestra **Cerrar sesión**, que cierra la sesión de este dispositivo y limpia su copia local privada cuando no quedan registros pendientes. Los datos confirmados permanecen en Supabase.
 
@@ -35,13 +35,13 @@ Abre una vez con internet para instalar el service worker y almacenar los recurs
 
 ## Conectar la nube
 
-El proyecto dedicado provisionado es `saldo-finanzas` (`juwusslvhwycmudynqln`), en Leo_Personal. Las migraciones ya están aplicadas. El enlace público abre la aplicación y su demostración; el acceso a la nube está restringido al correo del propietario mediante `OWNER_EMAIL`. Para empezar, usa **Crear mi acceso**, el correo acordado y una contraseña propia; confirma el correo y configura tus saldos.
+El proyecto dedicado provisionado es `saldo-finanzas` (`juwusslvhwycmudynqln`), en Leo_Personal. Las migraciones ya están aplicadas. Cualquier persona puede crear una cuenta con su correo y contraseña mediante **Crear mi acceso**. Por decisión del propietario, el registro entra directamente sin confirmación por correo. Cada cuenta empieza con su propio espacio vacío; no comparte cuentas bancarias ni movimientos con otros usuarios. Los distintos correos de una misma persona también crean espacios separados.
 
 1. Crea un proyecto Supabase **dedicado**. La organización y el costo deben elegirse antes de provisionarlo. No aplicar esta migración a una aplicación existente.
 2. Aplica todas las migraciones de `supabase/migrations` al proyecto nuevo, en orden. Con la CLI autenticada: `npx supabase link --project-ref TU_PROJECT_REF`, seguido de `npx supabase db push`.
 3. Copia `.env.example` a `.env.local`. Configura `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` con los valores del proyecto; son claves publicables. Nunca usar una clave privilegiada en una variable `NEXT_PUBLIC_*`.
-4. Define `OWNER_EMAIL` con tu correo para restringir el acceso desde la aplicación. Mantén desactivada la inscripción pública en Supabase y crea/invita al propietario, o habilítala únicamente para registrar ese correo y desactívala después. El aislamiento por usuario también se verifica en Postgres.
-5. Configura correo/contraseña, URL del sitio y confirmación de correo en Supabase Auth. La contraseña se introduce en la aplicación; no se guarda en archivos del proyecto.
+4. Habilita el registro mediante correo/contraseña en Supabase. El aislamiento por usuario se verifica en Postgres; no hay una lista de correos permitidos en la aplicación.
+5. Configura la URL del sitio y sus redirecciones en Supabase Auth. La configuración desplegada tiene `enable_confirmations = false`: el correo identifica la cuenta, pero no se verifica su propiedad. La contraseña se introduce en la aplicación; no se guarda en archivos del proyecto. Para habilitar confirmaciones o recuperación por correo, configura primero un proveedor SMTP propio.
 6. Reinicia la aplicación. En Ajustes → Mi espacio puedes pasar de demostración a nube. La configuración inicial empieza en blanco; los datos de ejemplo no se suben.
 
 La migración habilita RLS en todas las tablas, permite lectura propia y bloquea escrituras directas del cliente. Los comandos financieros se ejecutan bajo un bloqueo por usuario y se confirman en una sola transacción. Los valores monetarios salen del RPC como cadenas decimales.
@@ -60,7 +60,7 @@ Las pruebas de base usan Postgres real compilado a WASM con PGlite. Preparan un 
 
 ## Despliegue
 
-Vercel detecta Next.js. Añade las tres variables anteriores a Preview y Production y crea primero una vista previa. Verifica protección de acceso y que ningún recurso privilegiado llegue al navegador. Antes de cargar datos reales, prueba dos usuarios, un movimiento desde cada dispositivo y la recuperación tras desconexión.
+Vercel detecta Next.js. Añade las dos variables de Supabase a Preview y Production y crea primero una vista previa. Verifica protección de datos y que ningún recurso privilegiado llegue al navegador. Antes de cargar datos reales, prueba dos usuarios, un movimiento desde cada dispositivo y la recuperación tras desconexión.
 
 El modo local no se migra automáticamente a la nube. El asistente carga los saldos en el espacio seleccionado para evitar duplicaciones; exporta el historial local antes de cambiar si necesitas conservarlo fuera del dispositivo.
 

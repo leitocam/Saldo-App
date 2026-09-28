@@ -4,7 +4,7 @@
 
 La página Next.js monta el controlador React y una interfaz de cinco secciones. `finance.ts` utiliza Decimal.js para proyecciones de saldo, reportes y FIFO; `commands.ts` valida comandos y produce un nuevo estado sin modificar el anterior. `storage.ts` conserva estado y pendientes en IndexedDB, con claves separadas para demostración, local y cada usuario autenticado.
 
-En nube, las rutas autentican mediante Supabase SSR y verifican `OWNER_EMAIL`, si está configurado. La clave publicable respeta RLS. `read_finance_state` devuelve importes como texto: evita la pérdida de precisión al leer números JSON. La API no requiere `service_role`.
+En nube, las rutas autentican mediante Supabase SSR y aceptan cualquier usuario autenticado. El registro público utiliza correo y contraseña, sin confirmación por correo según la preferencia del propietario. Cada usuario tiene su propio espacio, sin vincular ni compartir automáticamente distintos correos. La clave publicable respeta RLS y los comandos exigen `auth.uid()`. `read_finance_state` devuelve importes como texto: evita la pérdida de precisión al leer números JSON. La API no requiere `service_role`.
 
 ## Comandos y concurrencia
 
@@ -40,4 +40,4 @@ Los defaults son 100 USDT, 100 operaciones, 95 % de finalización y 98 % de valo
 
 No se ejecutan compras, ventas ni transferencias reales, no se conecta el banco y no se almacena una clave de Binance. Recurrentes requieren confirmación del pago. El modo local es almacenamiento del navegador, no un respaldo externo. La recarga offline necesita haber abierto la instalación antes con conexión.
 
-La base se prueba con PGlite; la integración Supabase necesita además validar correo/contraseña, propietario, políticas y sincronización contra el proyecto remoto. Los logs técnicos deben contener fase y código de fallo, nunca notas, saldos, correos, contraseñas ni payloads de movimientos.
+La base se prueba con PGlite; la integración Supabase necesita además validar correo/contraseña, aislamiento entre usuarios, políticas y sincronización contra el proyecto remoto. Los logs técnicos deben contener fase y código de fallo, nunca notas, saldos, correos, contraseñas ni payloads de movimientos.

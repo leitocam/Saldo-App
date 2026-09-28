@@ -1444,7 +1444,7 @@ export function AuthForm() {
           <h2>{signup ? "Crea tu acceso" : "Qué bueno verte."}</h2>
           <p className="quiet">
             {signup
-              ? "Comienza a cuidar tus finanzas."
+              ? "Crea tu cuenta con tu correo y contraseña. Tus finanzas son privadas."
               : "Inicia sesión para volver a tus finanzas."}
           </p>
         </div>

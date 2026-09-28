@@ -9,21 +9,21 @@ export async function POST(r: Request) {
         "Configura Supabase para activar el acceso privado.",
         503,
       );
-    const { email, password, action } = await r.json();
+    const { email: submittedEmail, password, action } = await r.json();
+    const email =
+      typeof submittedEmail === "string"
+        ? submittedEmail.trim()
+        : submittedEmail;
     if (
       typeof email !== "string" ||
       !email.includes("@") ||
       typeof password !== "string" ||
-      password.length < 8
+      password.length < 8 ||
+      (action !== "signup" && action !== "signin")
     )
       throw new ApiError(
         "Usa un correo válido y una contraseña de al menos ocho caracteres.",
       );
-    if (
-      process.env.OWNER_EMAIL &&
-      email.toLowerCase() !== process.env.OWNER_EMAIL.toLowerCase()
-    )
-      throw new ApiError("Esta aplicación es privada.", 403);
     const db = await serverSupabase();
     const result =
       action === "signup"

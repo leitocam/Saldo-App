@@ -23,11 +23,6 @@ export async function session() {
     error,
   } = await db.auth.getUser();
   if (error || !user) throw new ApiError("Inicia sesión para continuar.", 401);
-  if (
-    process.env.OWNER_EMAIL &&
-    user.email?.toLowerCase() !== process.env.OWNER_EMAIL.toLowerCase()
-  )
-    throw new ApiError("Esta aplicación es privada.", 403);
   return { db, user };
 }
 export async function getState(): Promise<FinanceState> {
