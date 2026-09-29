@@ -1831,7 +1831,8 @@ small {
   grid-template-columns: repeat(2, 1fr);
   gap: 15px;
 }
-.form-stack > .btn {
+.form-stack > .btn,
+.dialog-actions > .btn {
   min-height: 50px;
   border-radius: 99px;
   font-size: 13px;
@@ -2162,6 +2163,14 @@ small {
 .form-actions > .btn {
   min-height: 48px;
   border-radius: 99px;
+}
+.dialog-actions {
+  flex-direction: column;
+}
+.movement-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 .settings-heading {
   display: flex;
@@ -3922,4 +3931,213 @@ input::placeholder {
 }
 .account-report > button:hover {
   background: #ffffff05;
+}
+
+/* Desktop dialogs use the available width and keep navigation and actions in view. */
+@media (min-width: 761px) {
+  .sheet {
+    width: min(620px, calc(100vw - 64px));
+    margin: auto;
+    overflow: hidden;
+    border-radius: 28px;
+    border-color: #ffffff1a;
+  }
+  .sheet.wide {
+    width: min(820px, calc(100vw - 64px));
+  }
+  .sheet.sheet-movement {
+    width: min(840px, calc(100vw - 64px));
+  }
+  .sheet-inner {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 64px);
+    padding: 0;
+  }
+  .sheet-heading {
+    flex-shrink: 0;
+    align-items: center;
+    gap: 24px;
+    margin: 0;
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sheet-heading > div {
+    min-width: 0;
+  }
+  .sheet-heading h2 {
+    font-size: 26px;
+    letter-spacing: -0.035em;
+  }
+  .sheet-heading p {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .sheet-heading .icon-btn {
+    flex-shrink: 0;
+    margin: 0;
+    background: #ffffff05;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+  }
+  .sheet-heading .icon-btn:hover {
+    background: var(--elevated);
+  }
+  .sheet-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #50545a transparent;
+    padding: 24px 32px 32px;
+    scroll-padding: 24px 0 112px;
+  }
+  .sheet-body .field,
+  .sheet-body .field > span,
+  .sheet-body .picker-heading > span {
+    font-size: 13px;
+  }
+  .sheet-body .field > small,
+  .sheet-body .quiet,
+  .sheet-body .form-callout,
+  .sheet-body .form-error {
+    font-size: 13px;
+  }
+  .sheet-body .field input,
+  .sheet-body .field select {
+    font-size: 15px;
+  }
+  .sheet-body .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sheet-body .segmented > button {
+    font-size: 13px;
+  }
+  .sheet-body .form-details summary {
+    font-size: 13px;
+    min-height: 48px;
+  }
+  .sheet-body .checkbox-row {
+    font-size: 13px;
+  }
+  .sheet-body .checkbox-row small {
+    font-size: 12px;
+  }
+  .sheet-body .form-actions {
+    position: sticky;
+    bottom: -32px;
+    z-index: 2;
+    align-items: center;
+    gap: 16px;
+    margin: 4px -32px -32px;
+    padding: 16px 32px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .sheet-body .dialog-actions {
+    flex-direction: row-reverse;
+    flex-wrap: wrap;
+  }
+  .sheet-body .dialog-actions > .primary {
+    width: auto;
+    min-width: 220px;
+    font-size: 14px;
+  }
+  .sheet-body .dialog-actions > .text-button {
+    font-size: 13px;
+    min-height: 52px;
+    text-align: left;
+    margin-right: auto;
+  }
+  .movement-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px 24px;
+    align-items: start;
+  }
+  .movement-layout > * {
+    min-width: 0;
+  }
+  .movement-layout > .amount-input,
+  .movement-layout > .movement-description,
+  .movement-layout > .form-details,
+  .movement-layout > .form-callout {
+    grid-column: 1 / -1;
+  }
+  .movement-layout.has-categories > .amount-input {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .movement-layout.has-categories > .movement-account-fields {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .movement-layout.has-categories > .movement-description {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .movement-layout.has-categories > .category-picker {
+    grid-column: 2;
+    grid-row: 1 / 4;
+    align-self: stretch;
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: #111214;
+  }
+  .movement-layout.has-categories .movement-account-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .movement-layout .amount-input {
+    padding: 20px 12px;
+    border: 1px solid #83d6af1c;
+    border-radius: 20px;
+    background: #83d6af05;
+  }
+  .movement-layout .amount-input > label {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .movement-layout .amount-input input {
+    max-width: min(240px, calc(100% - 48px));
+    font-size: 48px;
+  }
+  .movement-layout .category-grid {
+    max-height: 344px;
+    padding: 3px;
+    gap: 8px;
+    scrollbar-width: thin;
+  }
+  .movement-layout .category-grid > button {
+    min-height: 94px;
+    border-radius: 14px;
+    padding: 8px 4px;
+  }
+  .movement-layout .category-grid > button > span:not(.selection-check) {
+    font-size: 12px;
+  }
+  .movement-layout .mini-search input {
+    width: 104px;
+    font-size: 12px;
+  }
+  .sheet-settings .settings-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 28px;
+  }
+  .sheet-settings .setting-row strong {
+    font-size: 14px;
+  }
+  .sheet-settings .setting-row small {
+    font-size: 12px;
+  }
+  .sheet-settings .setting-row > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .sheet-settings .settings-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
 }

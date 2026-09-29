@@ -54,6 +54,10 @@ La barra superior conserva una salida visible en todas las secciones: «Salir de
 
 Panel inferior en móvil y diálogo centrado en escritorio. Primero se ve el tipo y el importe; después, categorías en tres columnas, cuenta y fecha, descripción y comisiones opcionales. La categoría elegida lleva contorno y marca circular. Guardar permanece como la acción más visible. Los errores aparecen junto al formulario sin eliminar lo escrito.
 
+En escritorio, el diálogo de movimientos mide hasta 840 px: importe, cuenta, fecha y descripción a la izquierda; categorías en un panel a la derecha. Compras, ventas y transferencias aprovechan dos columnas para sus campos relacionados. Los diálogos simples miden hasta 620 px; ajustes y configuración inicial, hasta 820 px. Se conserva un margen exterior de 32 px, incluso en portátiles.
+
+El encabezado con título y cierre queda fuera del área desplazable. Los campos se desplazan dentro del diálogo; las acciones permanecen en una franja inferior visible, con la acción principal a la derecha. Etiquetas y ayudas de escritorio usan 13 px y campos de 15 px. Las categorías de Ajustes forman dos columnas. Al cambiar de formulario se vuelve al inicio del contenido. En móvil se conserva el panel inferior, el orden vertical y los botones de ancho completo.
+
 ### Cuentas
 
 Una tarjeta por cuenta: identificador visual, nombre, saldo, moneda y acciones Movimientos / Conciliar. El banco se distingue por texto; un color parecido no sustituye su nombre. Las cuentas archivadas se presentan en un grupo secundario.

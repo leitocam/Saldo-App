@@ -217,14 +217,17 @@ export function Modal({
   children,
   onClose,
   wide = false,
+  variant = "standard",
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  variant?: "standard" | "movement" | "settings";
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const body = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const element = dialog.current;
     element?.showModal();
@@ -233,11 +236,14 @@ export function Modal({
       document.body.style.overflow = "";
     };
   }, []);
+  useEffect(() => {
+    body.current?.scrollTo({ top: 0 });
+  }, [title]);
   return (
     <dialog
       ref={dialog}
       aria-label={title}
-      className={`sheet ${wide ? "wide" : ""}`}
+      className={`sheet ${wide ? "wide" : ""} sheet-${variant}`}
       onCancel={onClose}
       onClick={(e) => {
         if (e.target === dialog.current) onClose();
@@ -254,7 +260,9 @@ export function Modal({
             <Icon name="X" />
           </button>
         </div>
-        {children}
+        <div className="sheet-body" ref={body}>
+          {children}
+        </div>
       </div>
     </dialog>
   );

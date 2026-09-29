@@ -1091,6 +1091,13 @@ export function FinanceApp() {
           }
           onClose={() => setModal(null)}
           wide={modal.type === "settings" || modal.type === "onboarding"}
+          variant={
+            modal.type === "movement"
+              ? "movement"
+              : modal.type === "settings"
+                ? "settings"
+                : "standard"
+          }
         >
           {modal.type === "movement" && (
             <MovementForm
@@ -1142,34 +1149,36 @@ export function FinanceApp() {
                       Nueva
                     </Button>
                   </div>
-                  {[...state.categories]
-                    .sort((a, b) => a.position - b.position)
-                    .map((c) => (
-                      <button
-                        className="setting-row"
-                        key={c.id}
-                        onClick={() => entity("category", c)}
-                      >
-                        <span
-                          className="category-icon"
-                          style={{ color: c.color }}
+                  <div className="settings-list">
+                    {[...state.categories]
+                      .sort((a, b) => a.position - b.position)
+                      .map((c) => (
+                        <button
+                          className="setting-row"
+                          key={c.id}
+                          onClick={() => entity("category", c)}
                         >
-                          <Icon name={c.icon} />
-                        </span>
-                        <div>
-                          <strong>{c.name}</strong>
-                          <small>
-                            {c.archived
-                              ? "Archivada"
-                              : c.type === "expense"
-                                ? "Gasto"
-                                : "Ingreso"}
-                            {c.favorite ? " · Favorita" : ""}
-                          </small>
-                        </div>
-                        <Icon name="Pencil" size={16} />
-                      </button>
-                    ))}
+                          <span
+                            className="category-icon"
+                            style={{ color: c.color }}
+                          >
+                            <Icon name={c.icon} />
+                          </span>
+                          <div>
+                            <strong>{c.name}</strong>
+                            <small>
+                              {c.archived
+                                ? "Archivada"
+                                : c.type === "expense"
+                                  ? "Gasto"
+                                  : "Ingreso"}
+                              {c.favorite ? " · Favorita" : ""}
+                            </small>
+                          </div>
+                          <Icon name="Pencil" size={16} />
+                        </button>
+                      ))}
+                  </div>
                 </>
               )}
               {settingsTab === "budgets" && (

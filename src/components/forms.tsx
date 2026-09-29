@@ -150,7 +150,7 @@ export function MovementForm({
     }
   }
   return (
-    <form onSubmit={save} className="form-stack">
+    <form onSubmit={save} className="form-stack movement-form">
       <div className="segmented kind-selector">
         {(["expense", "income", "transfer", "buy", "sell"] as const).map(
           (kind) => (
@@ -165,227 +165,235 @@ export function MovementForm({
           ),
         )}
       </div>
-      <div className="amount-input">
-        <label htmlFor="movement-amount">
-          {form.kind === "sell"
-            ? "Bolivianos recibidos"
-            : form.kind === "buy"
-              ? "Bolivianos pagados"
-              : form.kind === "adjustment"
-                ? "Diferencia de saldo"
-                : "Importe en bolivianos"}
-        </label>
-        <div>
-          <span>Bs</span>
-          <input
-            id="movement-amount"
-            name="amount"
-            inputMode="decimal"
-            autoFocus
-            placeholder="0,00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required={form.kind !== "opening"}
-            aria-label="Importe en bolivianos"
-          />
-        </div>
-      </div>
-      {isCrypto && (
-        <Field
-          label={form.kind === "sell" ? "USDT vendidos" : "USDT comprados"}
-        >
-          <input
-            inputMode="decimal"
-            placeholder="100"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            required
-          />
-        </Field>
-      )}
-      {["expense", "income"].includes(form.kind) && (
-        <div className="category-picker">
-          <div className="picker-heading">
-            <span>Categoría</span>
-            <div className="mini-search">
-              <Icon name="Search" size={16} />
-              <input
-                aria-label="Buscar categoría"
-                placeholder="Buscar"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+      <div
+        className={`movement-layout ${["expense", "income"].includes(form.kind) ? "has-categories" : ""}`}
+      >
+        <div className="amount-input">
+          <label htmlFor="movement-amount">
+            {form.kind === "sell"
+              ? "Bolivianos recibidos"
+              : form.kind === "buy"
+                ? "Bolivianos pagados"
+                : form.kind === "adjustment"
+                  ? "Diferencia de saldo"
+                  : "Importe en bolivianos"}
+          </label>
+          <div>
+            <span>Bs</span>
+            <input
+              id="movement-amount"
+              name="amount"
+              inputMode="decimal"
+              autoFocus
+              placeholder="0,00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required={form.kind !== "opening"}
+              aria-label="Importe en bolivianos"
+            />
           </div>
-          <div className="category-grid">
-            {categories.map((c) => (
-              <button
-                type="button"
-                key={c.id}
-                className={form.category_id === c.id ? "selected" : ""}
-                onClick={() => set("category_id", c.id)}
-              >
-                <Icon name={c.icon} size={24} style={{ color: c.color }} />
-                <span>{c.name.split(" — ")[0]}</span>
-                {form.category_id === c.id && (
-                  <span className="selection-check">
-                    <Icon name="Check" size={12} />
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-          {categories.length === 0 && (
-            <p className="quiet">
-              No hay categorías. Puedes crearlas en Ajustes.
-            </p>
-          )}
         </div>
-      )}
-      <div className="form-grid">
-        <Field
-          label={
-            form.kind === "sell" || form.kind === "income"
-              ? "Recibir en"
-              : "Cuenta"
-          }
-        >
-          <select
-            value={form.account_id ?? ""}
-            onChange={(e) => set("account_id", e.target.value)}
-            required={form.kind !== "opening"}
+        {isCrypto && (
+          <Field
+            label={form.kind === "sell" ? "USDT vendidos" : "USDT comprados"}
           >
-            <option value="">Seleccionar cuenta</option>
-            {state.accounts
-              .filter((a) => !a.archived || a.id === form.account_id)
-              .map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-          </select>
-        </Field>
-        <Field label="Fecha">
-          <input
-            type="date"
-            value={localDay(form.occurred_at)}
-            onChange={(e) => set("occurred_at", atDay(e.target.value))}
-            required
-          />
-        </Field>
-      </div>
-      {form.kind === "transfer" && (
-        <Field label="Cuenta de destino">
-          <select
-            value={form.destination_id ?? ""}
-            onChange={(e) => set("destination_id", e.target.value)}
-            required
-          >
-            <option value="">Seleccionar destino</option>
-            {state.accounts
-              .filter((a) => !a.archived && a.id !== form.account_id)
-              .map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-          </select>
-        </Field>
-      )}
-      <Field label="Descripción (opcional)">
-        <input
-          placeholder={
-            form.kind === "expense"
-              ? "¿En qué lo usaste?"
-              : "Una nota para recordar"
-          }
-          value={form.note}
-          onChange={(e) => set("note", e.target.value)}
-          maxLength={1000}
-        />
-      </Field>
-      {(["buy", "sell", "transfer"] as string[]).includes(form.kind) && (
-        <details className="form-details">
-          <summary>
-            Comisiones{isCrypto ? " e historial inicial" : ""}
-            <Icon name="ChevronDown" size={16} />
-          </summary>
-          <div className="form-grid">
-            <Field label="Comisión en BOB">
-              <input
-                inputMode="decimal"
-                value={form.fee_bob}
-                onChange={(e) => set("fee_bob", e.target.value)}
-              />
-            </Field>
-            {isCrypto && (
-              <Field label="Comisión en USDT">
+            <input
+              inputMode="decimal"
+              placeholder="100"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              required
+            />
+          </Field>
+        )}
+        {["expense", "income"].includes(form.kind) && (
+          <div className="category-picker">
+            <div className="picker-heading">
+              <span>Categoría</span>
+              <div className="mini-search">
+                <Icon name="Search" size={16} />
                 <input
-                  inputMode="decimal"
-                  value={form.fee_usdt}
-                  onChange={(e) => set("fee_usdt", e.target.value)}
+                  aria-label="Buscar categoría"
+                  placeholder="Buscar"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
                 />
-              </Field>
+              </div>
+            </div>
+            <div className="category-grid">
+              {categories.map((c) => (
+                <button
+                  type="button"
+                  key={c.id}
+                  className={form.category_id === c.id ? "selected" : ""}
+                  onClick={() => set("category_id", c.id)}
+                >
+                  <Icon name={c.icon} size={24} style={{ color: c.color }} />
+                  <span>{c.name.split(" — ")[0]}</span>
+                  {form.category_id === c.id && (
+                    <span className="selection-check">
+                      <Icon name="Check" size={12} />
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            {categories.length === 0 && (
+              <p className="quiet">
+                No hay categorías. Puedes crearlas en Ajustes.
+              </p>
             )}
           </div>
-          {isCrypto && (
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={form.history_only}
-                onChange={(e) => set("history_only", e.target.checked)}
-              />
-              <span>
-                Historial anterior al inicio
-                <small>No modifica el saldo inicial del banco.</small>
-              </span>
-            </label>
-          )}
-        </details>
-      )}
-      {isCrypto &&
-        /^\d+([.,]\d+)?$/.test(amount) &&
-        /^\d+([.,]\d+)?$/.test(quantity) &&
-        D(quantity.replace(",", ".") || 0).gt(0) && (
-          <div className="form-callout">
-            <Icon name="Coins" size={18} />
-            <span>
-              Tipo de cambio:{" "}
-              <strong>
-                {money(
-                  D(amount.replace(",", ".") || 0).div(
-                    quantity.replace(",", "."),
-                  ),
-                )}{" "}
-                / USDT
-              </strong>
-            </span>
-          </div>
         )}
+        <div className="form-grid movement-account-fields">
+          <Field
+            label={
+              form.kind === "sell" || form.kind === "income"
+                ? "Recibir en"
+                : "Cuenta"
+            }
+          >
+            <select
+              value={form.account_id ?? ""}
+              onChange={(e) => set("account_id", e.target.value)}
+              required={form.kind !== "opening"}
+            >
+              <option value="">Seleccionar cuenta</option>
+              {state.accounts
+                .filter((a) => !a.archived || a.id === form.account_id)
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+            </select>
+          </Field>
+          <Field label="Fecha">
+            <input
+              type="date"
+              value={localDay(form.occurred_at)}
+              onChange={(e) => set("occurred_at", atDay(e.target.value))}
+              required
+            />
+          </Field>
+        </div>
+        {form.kind === "transfer" && (
+          <Field label="Cuenta de destino">
+            <select
+              value={form.destination_id ?? ""}
+              onChange={(e) => set("destination_id", e.target.value)}
+              required
+            >
+              <option value="">Seleccionar destino</option>
+              {state.accounts
+                .filter((a) => !a.archived && a.id !== form.account_id)
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+            </select>
+          </Field>
+        )}
+        <div className="movement-description">
+          <Field label="Descripción (opcional)">
+            <input
+              placeholder={
+                form.kind === "expense"
+                  ? "¿En qué lo usaste?"
+                  : "Una nota para recordar"
+              }
+              value={form.note}
+              onChange={(e) => set("note", e.target.value)}
+              maxLength={1000}
+            />
+          </Field>
+        </div>
+        {(["buy", "sell", "transfer"] as string[]).includes(form.kind) && (
+          <details className="form-details">
+            <summary>
+              Comisiones{isCrypto ? " e historial inicial" : ""}
+              <Icon name="ChevronDown" size={16} />
+            </summary>
+            <div className="form-grid">
+              <Field label="Comisión en BOB">
+                <input
+                  inputMode="decimal"
+                  value={form.fee_bob}
+                  onChange={(e) => set("fee_bob", e.target.value)}
+                />
+              </Field>
+              {isCrypto && (
+                <Field label="Comisión en USDT">
+                  <input
+                    inputMode="decimal"
+                    value={form.fee_usdt}
+                    onChange={(e) => set("fee_usdt", e.target.value)}
+                  />
+                </Field>
+              )}
+            </div>
+            {isCrypto && (
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={form.history_only}
+                  onChange={(e) => set("history_only", e.target.checked)}
+                />
+                <span>
+                  Historial anterior al inicio
+                  <small>No modifica el saldo inicial del banco.</small>
+                </span>
+              </label>
+            )}
+          </details>
+        )}
+        {isCrypto &&
+          /^\d+([.,]\d+)?$/.test(amount) &&
+          /^\d+([.,]\d+)?$/.test(quantity) &&
+          D(quantity.replace(",", ".") || 0).gt(0) && (
+            <div className="form-callout">
+              <Icon name="Coins" size={18} />
+              <span>
+                Tipo de cambio:{" "}
+                <strong>
+                  {money(
+                    D(amount.replace(",", ".") || 0).div(
+                      quantity.replace(",", "."),
+                    ),
+                  )}{" "}
+                  / USDT
+                </strong>
+              </span>
+            </div>
+          )}
+      </div>
       <ErrorMessage error={error} />
-      <Button
-        type="submit"
-        icon={saving ? "LoaderCircle" : "Check"}
-        disabled={saving}
-        className="primary full"
-      >
-        {saving
-          ? "Guardando…"
-          : editing
-            ? "Guardar cambios"
-            : "Guardar movimiento"}
-      </Button>
-      {editing && (
-        <button
-          type="button"
-          className="text-button danger"
-          onClick={() => voidMovement()}
+      <div className="form-actions dialog-actions">
+        <Button
+          type="submit"
+          icon={saving ? "LoaderCircle" : "Check"}
           disabled={saving}
+          className="primary full"
         >
-          <Icon name="Trash2" size={16} />
-          Anular movimiento
-        </button>
-      )}
+          {saving
+            ? "Guardando…"
+            : editing
+              ? "Guardar cambios"
+              : "Guardar movimiento"}
+        </Button>
+        {editing && (
+          <button
+            type="button"
+            className="text-button danger"
+            onClick={() => voidMovement()}
+            disabled={saving}
+          >
+            <Icon name="Trash2" size={16} />
+            Anular movimiento
+          </button>
+        )}
+      </div>
     </form>
   );
 }
@@ -842,19 +850,25 @@ export function EntityForm({
         </>
       )}
       <ErrorMessage error={error} />
-      <Button
-        type="submit"
-        className="primary full"
-        icon={saving ? "LoaderCircle" : "Check"}
-        disabled={saving}
-      >
-        {saving ? "Guardando…" : "Guardar"}
-      </Button>
-      {initial && "archived" in initial && (
-        <button type="button" className="text-button" onClick={() => archive()}>
-          {form.archived ? "Reactivar" : "Archivar y conservar historial"}
-        </button>
-      )}
+      <div className="form-actions dialog-actions">
+        <Button
+          type="submit"
+          className="primary full"
+          icon={saving ? "LoaderCircle" : "Check"}
+          disabled={saving}
+        >
+          {saving ? "Guardando…" : "Guardar"}
+        </Button>
+        {initial && "archived" in initial && (
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => archive()}
+          >
+            {form.archived ? "Reactivar" : "Archivar y conservar historial"}
+          </button>
+        )}
+      </div>
     </form>
   );
 }
@@ -1369,9 +1383,11 @@ export function ReconcileForm({
         gasto.
       </p>
       <ErrorMessage error={error} />
-      <Button className="primary full" type="submit" icon="Check">
-        Conciliar saldo
-      </Button>
+      <div className="form-actions dialog-actions">
+        <Button className="primary full" type="submit" icon="Check">
+          Conciliar saldo
+        </Button>
+      </div>
     </form>
   );
 }
