@@ -12,6 +12,7 @@ import type {
   Quote,
 } from "./types";
 import { D, validInventory, today, localDay, nextDue } from "./finance";
+import { planningSchema, planningState, validatePlanning } from "./planning";
 export function equivalentMovement(a: Movement, b: Movement) {
   const fields = [
     "kind",
@@ -22,9 +23,11 @@ export function equivalentMovement(a: Movement, b: Movement) {
     "history_only",
     "recurring_key",
     "card_currency",
+    "parent_id",
   ] as const;
   return (
     fields.every((k) => (a[k] ?? null) === (b[k] ?? null)) &&
+    (a.asset ?? "USDT") === (b.asset ?? "USDT") &&
     Date.parse(a.occurred_at) === Date.parse(b.occurred_at) &&
     ["amount_bob", "card_amount", "usdt_quantity", "fee_bob", "fee_usdt"].every(
       (k) => {
@@ -81,10 +84,16 @@ export const movementSchema = z.object({
     "buy",
     "sell",
     "card",
+    "crypto_in",
+    "crypto_out",
+    "refund",
+    "cashback",
     "opening",
     "adjustment",
   ]),
   account_id: uuid.nullable(),
+  asset: z.enum(["USDT", "USDC"]).default("USDT"),
+  parent_id: uuid.nullable().default(null),
   destination_id: uuid.nullable(),
   category_id: uuid.nullable(),
   amount_bob: amount.nullable(),
@@ -106,7 +115,15 @@ export const movementSchema = z.object({
 });
 export const commandSchema = z.object({
   id: uuid,
-  type: z.enum(["movement", "void", "entity", "bootstrap"]),
+  type: z.enum([
+    "movement",
+    "void",
+    "entity",
+    "bootstrap",
+    "planning",
+    "batch",
+    "restore",
+  ]),
   entity: z
     .enum([
       "account",
@@ -199,6 +216,51 @@ export const entitySchemas = {
   }),
 };
 export function validateMovement(m: Movement, s: FinanceState) {
+  const cryptoOnly = ["crypto_in", "crypto_out", "refund", "cashback"].includes(
+    m.kind,
+  );
+  if (cryptoOnly) {
+    if (
+      m.account_id ||
+      m.destination_id ||
+      m.history_only ||
+      m.card_amount !== null ||
+      m.card_currency !== null ||
+      !D(m.fee_bob).isZero() ||
+      !D(m.fee_usdt).isZero() ||
+      D(m.usdt_quantity).lte(0)
+    )
+      throw new Error("Revisa los datos del movimiento de criptomonedas.");
+    if (
+      m.amount_bob !== null &&
+      (D(m.amount_bob).lt(0) || D(m.amount_bob).decimalPlaces() > 2)
+    )
+      throw new Error(
+        "El importe BOB debe ser positivo y tener hasta dos decimales.",
+      );
+    if (m.kind === "crypto_out" && m.amount_bob !== null)
+      throw new Error("Un ajuste de salida no tiene ingreso en BOB.");
+    if (m.kind === "refund") {
+      if (
+        !m.parent_id ||
+        m.amount_bob === null ||
+        D(m.amount_bob).lte(0) ||
+        !m.category_id
+      )
+        throw new Error("Selecciona el consumo y el importe devuelto en BOB.");
+    } else if (m.parent_id || m.category_id)
+      throw new Error(
+        "Este movimiento no utiliza consumo original ni categoría.",
+      );
+    if (!m.note.trim()) throw new Error("Explica el motivo del movimiento.");
+    if (s.profile.onboarded && localDay(m.occurred_at) < s.profile.cutoff)
+      throw new Error("El movimiento es anterior al inicio de este espacio.");
+    return;
+  }
+  if ((m.asset ?? "USDT") !== "USDT" || m.parent_id)
+    throw new Error(
+      "Esta operación solo admite USDT y no utiliza consumo original.",
+    );
   const a = s.accounts.find((a) => a.id === m.account_id);
   if (!["opening", "card"].includes(m.kind) && (!a || a.archived))
     throw new Error("Elige una cuenta activa.");
@@ -281,6 +343,54 @@ export function validateMovement(m: Movement, s: FinanceState) {
 export function applyCommand(state: FinanceState, raw: Command): FinanceState {
   const c = commandSchema.parse(raw),
     s = structuredClone(state);
+  if (c.type === "batch") {
+    if (
+      c.payload.expected_inventory &&
+      typeof c.payload.expected_inventory === "object"
+    )
+      for (const [asset, quantity] of Object.entries(
+        c.payload.expected_inventory,
+      )) {
+        if (asset !== "USDT" && asset !== "USDC")
+          throw new Error("Activo inválido.");
+        if (!D(inventoryForGuard(s, asset)).eq(String(quantity)))
+          throw new Error("El saldo cambió. Vuelve a conciliar.");
+      }
+    const children = z
+      .array(commandSchema)
+      .min(1)
+      .max(1000)
+      .parse(c.payload.commands);
+    if (
+      children.some(
+        (x) => !["movement", "void", "entity", "planning"].includes(x.type),
+      )
+    )
+      throw new Error("El lote contiene una operación no admitida.");
+    let next = s;
+    for (const child of children) next = applyCommand(next, child as Command);
+    validatePlanning(next);
+    return next;
+  }
+  if (c.type === "restore")
+    throw new Error("Usa la vista previa de restauración.");
+  if (c.type === "planning") {
+    const current = planningState(s),
+      value = planningSchema.parse(c.payload);
+    if (sameEntity(current, value) && c.expected_version !== current.version)
+      return s;
+    if (
+      current.version
+        ? c.expected_version !== current.version
+        : c.expected_version !== undefined
+    )
+      throw new Error(
+        "Las herramientas cambiaron en otro dispositivo. Actualiza antes de guardar.",
+      );
+    s.planning = { ...value, version: current.version + 1 };
+    validatePlanning(s);
+    return s;
+  }
   if (c.type === "bootstrap") {
     const candidate = c.payload as unknown as FinanceState;
     s.profile = entitySchemas.profile.parse(candidate.profile);
@@ -399,7 +509,10 @@ export function applyCommand(state: FinanceState, raw: Command): FinanceState {
         budget: "budgets",
         recurring: "recurring",
         quote: "quotes",
-      }[entity] as Exclude<keyof FinanceState, "profile" | "movements">;
+      }[entity] as Exclude<
+        keyof FinanceState,
+        "profile" | "movements" | "planning"
+      >;
       const list = s[key] as (
         | Account
         | Category
@@ -487,5 +600,13 @@ export function applyCommand(state: FinanceState, raw: Command): FinanceState {
     }
   }
   validInventory(s);
+  inventoryAssetCheck(s);
+  validatePlanning(s);
   return s;
+}
+function inventoryAssetCheck(s: FinanceState) {
+  validInventory(s, "USDC");
+}
+function inventoryForGuard(s: FinanceState, asset: "USDT" | "USDC") {
+  return validInventory(s, asset).quantity;
 }

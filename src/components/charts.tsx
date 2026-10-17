@@ -10,6 +10,7 @@ export function Donut({
   onSelect?: (id: string) => void;
 }) {
   let offset = 0;
+  const distribution = items.reduce((sum, item) => sum.plus(item.amount), D(0));
   const circumference = 2 * Math.PI * 70;
   return (
     <div className="donut-wrap">
@@ -28,8 +29,8 @@ export function Donut({
             strokeWidth="15"
           />
           {items.map((item) => {
-            const length = D(total).gt(0)
-              ? D(item.amount).div(total).toNumber() * circumference
+            const length = distribution.gt(0)
+              ? D(item.amount).div(distribution).toNumber() * circumference
               : 0;
             const current = offset;
             offset += length;
@@ -64,8 +65,8 @@ export function Donut({
             <span className="legend-dot" style={{ background: item.color }} />
             <span>{item.name.split(" — ")[0]}</span>
             <strong>
-              {D(total).gt(0)
-                ? D(item.amount).div(total).mul(100).toFixed(0)
+              {distribution.gt(0)
+                ? D(item.amount).div(distribution).mul(100).toFixed(0)
                 : 0}
               %
             </strong>
@@ -82,7 +83,10 @@ export function MonthlyChart({
 }) {
   const max = Math.max(
     1,
-    ...items.flatMap((i) => [D(i.income).toNumber(), D(i.expense).toNumber()]),
+    ...items.flatMap((i) => [
+      D(i.income).abs().toNumber(),
+      D(i.expense).abs().toNumber(),
+    ]),
   );
   return (
     <div
@@ -111,8 +115,8 @@ export function MonthlyChart({
                 <span className="bar-tooltip">{money(i.income)}</span>
               </div>
               <div
-                className="bar expense"
-                style={{ height: `${D(i.expense).div(max).mul(100)}%` }}
+                className={D(i.expense).lt(0) ? "bar income" : "bar expense"}
+                style={{ height: `${D(i.expense).abs().div(max).mul(100)}%` }}
                 tabIndex={0}
                 aria-label={`${i.month}: gastos ${money(i.expense)}`}
               >

@@ -32,6 +32,11 @@ Abre una vez con internet para instalar el service worker y almacenar los recurs
 - Reportes por período/cuenta/categoría; ingresos personales separados de movimientos de fondos.
 - Consulta de venta Binance P2P filtrada por bancos, monto y calidad; referencia manual identificada.
 - Cola por usuario con reintentos idempotentes y conservación de registros rechazados.
+- Disponible del mes y referencia diaria después de recurrentes pendientes y deudas por pagar con vencimiento este mes.
+- Deudas por cobrar/pagar, abonos parciales y ajustes bancarios atómicos en **Cuentas**.
+- Grupos compartidos en la nube: invitaciones de un uso, reparto igual o personalizado y pagos confirmados por quien recibe. Cada persona mantiene sus cuentas privadas.
+- Conciliación USDT/USDC, cargos pendientes de tarjeta, devoluciones y cashback en **Binance → Control de Binance**. El precio de USDC se introduce manualmente y se distingue de USDT.
+- Respaldo JSON, restauración con vista previa y sin sobrescribir, e importación CSV con mapeo y detección de duplicados en **Ajustes → Datos**.
 
 ## Conectar la nube
 
@@ -62,7 +67,15 @@ Las pruebas de base usan Postgres real compilado a WASM con PGlite. Preparan un 
 
 Vercel detecta Next.js. Añade las dos variables de Supabase a Preview y Production y crea primero una vista previa. Verifica protección de datos y que ningún recurso privilegiado llegue al navegador. Antes de cargar datos reales, prueba dos usuarios, un movimiento desde cada dispositivo y la recuperación tras desconexión.
 
-El modo local no se migra automáticamente a la nube. El asistente carga los saldos en el espacio seleccionado para evitar duplicaciones; exporta el historial local antes de cambiar si necesitas conservarlo fuera del dispositivo.
+El modo local no se migra automáticamente a la nube. Puedes descargar su respaldo JSON, cambiar a tu cuenta y restaurarlo desde Ajustes → Datos. La vista previa identifica registros nuevos, copias y conflictos; no sobrescribe datos existentes ni mezcla fechas de inicio diferentes. Los grupos compartidos se exportan por separado como CSV y no se restauran desde el archivo personal.
+
+## Recuperación de contraseña preparada
+
+El propietario decidió dejar preparado el flujo mientras elige proveedor SMTP. `PASSWORD_RECOVERY_ENABLED` permanece desactivado; el formulario explica que todavía no enviará correos. No se usan correos de confirmación para el registro directo.
+
+Para habilitar la recuperación: configura SMTP propio y el remitente en Supabase Auth; autoriza la redirección `https://saldo-finanzas-nine.vercel.app/auth/callback?next=/recover`; añade `PASSWORD_RECOVERY_ENABLED=true` solo en el servidor de Vercel y vuelve a desplegar. Prueba primero con una cuenta de prueba. El enlace intercambia un código PKCE y permite cambiar la contraseña de la sesión autenticada; después revoca las sesiones de actualización y vuelve al login. Los tokens de acceso ya emitidos conservan su vigencia hasta expirar.
+
+Los respaldos JSON contienen información financiera privada. El límite de restauración es 3 MB y el CSV admite hasta 500 filas por archivo. Si hay operaciones pendientes, el respaldo las conserva como archivo informativo; no las reenvía automáticamente. Sincroniza y descarga un respaldo confirmado antes de restaurar.
 
 Las funciones de la vista previa se configuran en São Paulo mediante `vercel.json`, cerca de la base. [Referencia oficial de regiones de Vercel](https://vercel.com/docs/project-configuration/vercel-json#regions). `docs/deployment/supabase/config.toml` mantiene únicamente los ajustes de Auth declarados; no reemplaza otros valores del proveedor. Para actualizarlo: `npx supabase config diff --project-ref TU_PROJECT_REF --workdir docs/deployment` y después `config push` con los mismos argumentos.
 

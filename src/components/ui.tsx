@@ -303,6 +303,10 @@ export const kindNames: Record<string, string> = {
   card: "Gasto con Binance Card",
   opening: "Saldo inicial USDT",
   adjustment: "Ajuste de saldo",
+  crypto_in: "Entrada por conciliación",
+  crypto_out: "Salida por conciliación",
+  refund: "Devolución de tarjeta",
+  cashback: "Cashback recibido",
 };
 export function MovementRow({
   m,
@@ -319,7 +323,7 @@ export function MovementRow({
     account = state.accounts.find((a) => a.id === m.account_id),
     destination = state.accounts.find((a) => a.id === m.destination_id),
     incoming =
-      ["income", "sell"].includes(m.kind) ||
+      ["income", "sell", "refund", "crypto_in", "cashback"].includes(m.kind) ||
       (m.kind === "adjustment" && D(m.amount_bob).gte(0)),
     spend = m.kind === "expense" || m.kind === "card";
   const icon =
@@ -346,7 +350,11 @@ export function MovementRow({
         <strong>{m.note || cat?.name || kindNames[m.kind]}</strong>
         <small>
           {account?.name ??
-            (m.kind === "card" ? "Binance Card" : "Historial inicial")}
+            (["card", "refund", "cashback", "crypto_in", "crypto_out"].includes(
+              m.kind,
+            )
+              ? `Binance · ${m.asset ?? "USDT"}`
+              : "Historial inicial")}
           {destination ? ` → ${destination.name}` : ""}
           <span className="dot">·</span>
           {displayDate(m.occurred_at)}
@@ -358,12 +366,16 @@ export function MovementRow({
       >
         <strong>
           {m.amount_bob === null
-            ? "Costo por completar"
+            ? `${m.kind === "crypto_out" ? "−" : "+"}${m.usdt_quantity} ${m.asset ?? "USDT"}`
             : `${incoming ? "+" : spend || m.kind === "buy" ? "−" : ""}${money(m.amount_bob)}`}
         </strong>
         <small>
-          {m.usdt_quantity !== "0"
-            ? `${m.usdt_quantity} USDT`
+          {D(m.usdt_quantity).gt(0)
+            ? m.amount_bob === null
+              ? m.kind === "crypto_out"
+                ? "Ajuste de saldo"
+                : "Costo incompleto"
+              : `${m.usdt_quantity} ${m.asset ?? "USDT"}`
             : (cat?.name ?? kindNames[m.kind])}
         </small>
       </span>

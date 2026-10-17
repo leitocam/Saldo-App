@@ -29,6 +29,7 @@ import type {
 } from "@/lib/types";
 import type { PaymentMethod } from "@/lib/p2p";
 import { AuthResponseError, readAuthResponse } from "@/lib/auth-response";
+import { RecoveryRequest } from "./recovery";
 export function MovementForm({
   initial,
   onClose,
@@ -1488,12 +1489,14 @@ export function ReconcileForm({
 export function AuthForm() {
   const { refreshAuth, switchMode } = useFinance(),
     [signup, setSignup] = useState(false),
+    [forgot, setForgot] = useState(false),
     [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [confirmation, setConfirmation] = useState(false),
     [requiresVercel, setRequiresVercel] = useState(false);
+  if (forgot) return <RecoveryRequest onBack={() => setForgot(false)} />;
   return (
     <div className="auth-screen">
       <div className="auth-art">
@@ -1613,6 +1616,15 @@ export function AuthForm() {
           {signup ? "Ya tengo una cuenta" : "Crear mi acceso"}
         </button>
         <div className="auth-divider">o explora antes</div>
+        {!signup && (
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => setForgot(true)}
+          >
+            Olvidé mi contraseña
+          </button>
+        )}
         <Button className="full" onClick={() => void switchMode("demo")}>
           Probar la demostración
         </Button>

@@ -14,6 +14,7 @@ import { demoState, emptyState } from "@/lib/demo";
 import { readWorkspace, writeWorkspace, clearWorkspace } from "@/lib/storage";
 import { browserSupabase, cloudConfigured } from "@/lib/supabase/browser";
 import { deliver, rebase } from "@/lib/sync";
+import { validateSnapshot } from "@/lib/backup";
 type Context = {
   state: FinanceState;
   ready: boolean;
@@ -32,6 +33,7 @@ type Context = {
   signOut: () => Promise<void>;
   exitDemo: () => Promise<void>;
   discardPending: (id: string) => Promise<void>;
+  restoreLocal: (state: FinanceState, signature: string) => Promise<void>;
 };
 const FinanceContext = createContext<Context | null>(null);
 export function FinanceProvider({ children }: { children: ReactNode }) {
@@ -334,10 +336,24 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     },
     [commit, sync],
   );
+  const restoreLocal = useCallback(
+    async (next: FinanceState, signature: string) => {
+      if (ref.current.mode !== "local")
+        throw new Error("Selecciona tu espacio local antes de restaurar.");
+      if (
+        JSON.stringify(ref.current.state) !== signature ||
+        ref.current.pending.length
+      )
+        throw new Error("Tus datos cambiaron. Genera otra vista previa.");
+      await commit(validateSnapshot(next), []);
+    },
+    [commit],
+  );
   return (
     <FinanceContext.Provider
       value={{
         state,
+        restoreLocal,
         ready,
         mode,
         online,

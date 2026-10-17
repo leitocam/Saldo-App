@@ -54,12 +54,27 @@ export const displayDate = (date: string) =>
     day: "numeric",
     month: "short",
   }).format(new Date(date));
-export function inventory(movements: Movement[]): Inventory {
+export function inventory(
+  movements: Movement[],
+  asset: "USDT" | "USDC" = "USDT",
+): Inventory {
   const lots: Lot[] = [],
     sales: SaleResult[] = [];
   const ordered = movements
     .filter(
-      (m) => !m.voided && ["buy", "sell", "opening", "card"].includes(m.kind),
+      (m) =>
+        !m.voided &&
+        (m.asset ?? "USDT") === asset &&
+        [
+          "buy",
+          "sell",
+          "opening",
+          "card",
+          "crypto_in",
+          "crypto_out",
+          "refund",
+          "cashback",
+        ].includes(m.kind),
     )
     .sort(
       (a, b) =>
@@ -69,7 +84,9 @@ export function inventory(movements: Movement[]): Inventory {
   for (const m of ordered) {
     const q = D(m.usdt_quantity),
       fee = D(m.fee_usdt);
-    if (m.kind === "buy" || m.kind === "opening") {
+    if (
+      ["buy", "opening", "crypto_in", "refund", "cashback"].includes(m.kind)
+    ) {
       const received = q.minus(fee);
       if (received.lte(0))
         throw new Error("Los USDT netos deben ser mayores que cero.");
@@ -99,15 +116,16 @@ export function inventory(movements: Movement[]): Inventory {
         throw new Error(
           "No tienes suficientes USDT para esta operación, incluida su comisión.",
         );
-      sales.push({
-        id: m.id,
-        cost: cost.toFixed(12),
-        unknown_quantity: unknown.toFixed(),
-        profit: unknown.gt(0)
-          ? null
-          : D(m.amount_bob).minus(m.fee_bob).minus(cost).toFixed(12),
-        quantity: q.plus(fee).toFixed(),
-      });
+      if (m.kind !== "crypto_out")
+        sales.push({
+          id: m.id,
+          cost: cost.toFixed(12),
+          unknown_quantity: unknown.toFixed(),
+          profit: unknown.gt(0)
+            ? null
+            : D(m.amount_bob).minus(m.fee_bob).minus(cost).toFixed(12),
+          quantity: q.plus(fee).toFixed(),
+        });
     }
   }
   return {
@@ -152,9 +170,12 @@ export const reserved = (s: FinanceState) =>
   s.goals
     .filter((g) => !g.archived)
     .reduce((sum, g) => sum.plus(g.reserved_usdt), D(0));
-export function validInventory(s: FinanceState) {
-  const i = inventory(s.movements);
-  if (reserved(s).gt(i.quantity))
+export function validInventory(
+  s: FinanceState,
+  asset: "USDT" | "USDC" = "USDT",
+) {
+  const i = inventory(s.movements, asset);
+  if (asset === "USDT" && reserved(s).gt(i.quantity))
     throw new Error("Libera USDT de tus metas antes de reducir este saldo.");
   return i;
 }
@@ -184,16 +205,23 @@ export function report(
       .filter((m) => m.kind === kind)
       .reduce((a, m) => a.plus(D(m.amount_bob)), D(0));
   const income = sum("income"),
-    expense = sum("expense").plus(sum("card"));
+    grossExpense = sum("expense").plus(sum("card")),
+    refunds = sum("refund"),
+    expense = grossExpense.minus(refunds);
   const expensesByCategory = s.categories
     .filter((c) => c.type === "expense")
     .map((c) => ({
       ...c,
       amount: movements
         .filter(
-          (m) => ["expense", "card"].includes(m.kind) && m.category_id === c.id,
+          (m) =>
+            ["expense", "card", "refund"].includes(m.kind) &&
+            m.category_id === c.id,
         )
-        .reduce((a, m) => a.plus(D(m.amount_bob)), D(0))
+        .reduce(
+          (a, m) => a.plus(D(m.amount_bob).mul(m.kind === "refund" ? -1 : 1)),
+          D(0),
+        )
         .toFixed(),
     }))
     .filter((c) => D(c.amount).gt(0))
@@ -206,6 +234,8 @@ export function report(
     movements,
     income: income.toFixed(),
     expense: expense.toFixed(),
+    grossExpense: grossExpense.toFixed(),
+    refunds: refunds.toFixed(),
     net: income.minus(expense).toFixed(),
     expensesByCategory,
     profit: profit.toFixed(),
@@ -253,6 +283,7 @@ export function csv(s: FinanceState, movements: Movement[]) {
     [
       [
         "Fecha",
+        "ID",
         "Tipo",
         "Cuenta",
         "Destino",
@@ -261,12 +292,15 @@ export function csv(s: FinanceState, movements: Movement[]) {
         "Importe comercio",
         "Moneda comercio",
         "USDT",
+        "Activo",
+        "Movimiento original",
         "Comisión BOB",
         "Comisión USDT",
         "Descripción",
       ],
       ...movements.map((m) => [
         localDay(m.occurred_at),
+        m.id,
         m.kind,
         accounts[m.account_id ?? ""] ?? "",
         accounts[m.destination_id ?? ""] ?? "",
@@ -275,6 +309,8 @@ export function csv(s: FinanceState, movements: Movement[]) {
         m.card_amount ?? "",
         m.card_currency ?? "",
         m.usdt_quantity,
+        m.asset ?? "USDT",
+        m.parent_id ?? "",
         m.fee_bob,
         m.fee_usdt,
         m.note,

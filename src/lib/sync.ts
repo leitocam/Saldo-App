@@ -9,8 +9,9 @@ export async function deliver(
   c: Command,
   transport: typeof fetch = fetch,
 ): Promise<Delivery> {
-  const path =
-    c.type === "bootstrap"
+  const path = ["planning", "batch", "restore"].includes(c.type)
+    ? "/api/tools"
+    : c.type === "bootstrap"
       ? "/api/bootstrap"
       : c.type === "entity"
         ? "/api/entities"

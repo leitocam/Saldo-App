@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { serverSupabase } from "./supabase/server";
 import { cloudConfigured } from "./supabase/browser";
-import { commandSchema } from "./commands";
+import { commandSchema, movementSchema, entitySchemas } from "./commands";
+import { planningSchema } from "./planning";
 import { emptyState } from "./demo";
 import type { FinanceState } from "./types";
 import { recordFailure } from "./monitor";
@@ -49,9 +50,42 @@ export async function writeCommand(
 ) {
   try {
     const { db } = await session();
+    const origin = new URL(request.url).origin;
+    if (
+      request.headers.get("origin") &&
+      request.headers.get("origin") !== origin
+    )
+      throw new ApiError("Origen no permitido.", 403);
     const c = commandSchema.parse(await request.json());
     if (!allowed.includes(c.type) || (id && c.id !== id))
       throw new ApiError("Operación inválida.");
+    const validatePayload = (command: typeof c) => {
+      if (command.type === "movement") movementSchema.parse(command.payload);
+      if (command.type === "planning") planningSchema.parse(command.payload);
+      if (command.type === "entity") {
+        if (!command.entity) throw new ApiError("Falta el tipo de registro.");
+        entitySchemas[command.entity].parse(command.payload);
+      }
+      if (command.type === "batch") {
+        const children = command.payload.commands;
+        if (
+          !Array.isArray(children) ||
+          children.length < 1 ||
+          children.length > 1000
+        )
+          throw new ApiError(
+            "El lote debe contener entre 1 y 1000 operaciones.",
+          );
+        command.payload.commands = children.map((raw) => {
+          const child = commandSchema.parse(raw);
+          if (!["movement", "void", "entity", "planning"].includes(child.type))
+            throw new ApiError("Operación no permitida en lote.");
+          validatePayload(child);
+          return child;
+        });
+      }
+    };
+    validatePayload(c);
     const { data, error } = await db.rpc("apply_finance_command", {
       command: c,
     });

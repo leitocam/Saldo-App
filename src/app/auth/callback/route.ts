@@ -6,9 +6,20 @@ export async function GET(request: Request) {
   if (code) {
     const db = await serverSupabase();
     const { error } = await db.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(new URL("/", url.origin));
+    if (!error)
+      return NextResponse.redirect(
+        new URL(
+          url.searchParams.get("next") === "/recover" ? "/recover" : "/",
+          url.origin,
+        ),
+      );
   }
   return NextResponse.redirect(
-    new URL("/?auth_error=confirmation", url.origin),
+    new URL(
+      url.searchParams.get("next") === "/recover"
+        ? "/recover?error=expired"
+        : "/?auth_error=confirmation",
+      url.origin,
+    ),
   );
 }

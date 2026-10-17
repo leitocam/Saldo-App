@@ -4,6 +4,11 @@ import { apiError, ApiError } from "@/lib/api";
 import { cloudConfigured } from "@/lib/supabase/browser";
 export async function POST(r: Request) {
   try {
+    if (
+      r.headers.get("origin") &&
+      r.headers.get("origin") !== new URL(r.url).origin
+    )
+      throw new ApiError("Origen no permitido.", 403);
     if (!cloudConfigured())
       throw new ApiError(
         "Configura Supabase para activar el acceso privado.",

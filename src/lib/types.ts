@@ -6,6 +6,10 @@ export type Kind =
   | "buy"
   | "sell"
   | "card"
+  | "crypto_in"
+  | "crypto_out"
+  | "refund"
+  | "cashback"
   | "opening"
   | "adjustment";
 export type Account = {
@@ -37,6 +41,8 @@ export type Movement = {
   amount_bob: string | null;
   card_amount: string | null;
   card_currency: string | null;
+  asset?: "USDT" | "USDC";
+  parent_id?: string | null;
   usdt_quantity: string;
   fee_bob: string;
   fee_usdt: string;
@@ -108,6 +114,52 @@ export type FinanceState = {
   budgets: Budget[];
   recurring: Recurring[];
   quotes: Quote[];
+  planning?: Planning;
+};
+export type DebtPayment = {
+  id: string;
+  amount: string;
+  date: string;
+  account_id: string;
+  movement_id: string;
+};
+export type Debt = {
+  id: string;
+  name: string;
+  direction: "receivable" | "payable";
+  principal: string;
+  due_date: string | null;
+  note: string;
+  archived: boolean;
+  opening_movement_id: string | null;
+  payments: DebtPayment[];
+};
+export type CardDraft = {
+  id: string;
+  note: string;
+  amount_bob: string;
+  usdt_quantity: string;
+  category_id: string;
+  date: string;
+  card_currency: string;
+  card_amount: string;
+  status: "pending" | "cancelled" | "completed";
+};
+export type Reconciliation = {
+  id: string;
+  asset: "USDT" | "USDC";
+  recorded: string;
+  observed: string;
+  date: string;
+  note: string;
+  movement_id: string | null;
+};
+export type Planning = {
+  version: number;
+  debts: Debt[];
+  card_drafts: CardDraft[];
+  reconciliations: Reconciliation[];
+  usdc_reference: { price: string; observed_at: string } | null;
 };
 export type Entity =
   | "account"
@@ -119,7 +171,14 @@ export type Entity =
   | "quote";
 export type Command = {
   id: string;
-  type: "movement" | "void" | "entity" | "bootstrap";
+  type:
+    | "movement"
+    | "void"
+    | "entity"
+    | "bootstrap"
+    | "planning"
+    | "batch"
+    | "restore";
   entity?: Entity;
   payload: Record<string, unknown>;
   expected_version?: number;

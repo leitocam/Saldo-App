@@ -72,6 +72,16 @@ Tarjeta abre el mismo formulario rápido con gasto equivalente en BOB, USDT real
 
 Período y cuenta siempre visibles. Tres resultados: ingresos, gastos y diferencia. Gráfico mensual con dos series; dona de categorías con leyenda seleccionable; gastos por cuenta, movimientos de fondos, presupuestos y metas. No usar decoraciones que parezcan datos. Las cotizaciones históricas muestran exclusivamente muestras guardadas y dejan huecos cuando no hay información.
 
+### Planificación y datos
+
+Inicio incorpora «¿Cuánto puedes gastar?» con tres cifras: dinero libre, referencia diaria y compromisos. Un desplegable explica los pagos reservados; la cifra diaria no incluye ingresos futuros ni criptomonedas. Ocultar importes también oculta este resumen. Las deudas pendientes complementan el patrimonio con un desglose explícito.
+
+En Cuentas, Deudas y Gastos compartidos usan filas separadas por líneas finas. Cada deuda distingue capital pendiente, vencimiento y acciones de cobro o pago. El grupo muestra nombres visibles y saldos por recibir o pagar, acompañados de texto; los pagos pendientes requieren confirmación de quien recibe. El formulario de reparto conserva objetivos táctiles de 44 px y ofrece importes personalizados.
+
+Control de Binance separa Saldos, Cargos pendientes y Devoluciones/cashback. USDT y USDC siempre llevan su símbolo; una referencia USDC manual conserva su fecha. Los pendientes no se presentan como saldo descontado. La conciliación muestra diferencia y solicita activar expresamente el ajuste, además de indicar un motivo.
+
+Ajustes → Datos presenta respaldo, restauración e importación en secciones verticales. La restauración muestra cantidades y saldos resultantes antes de habilitar la confirmación. El CSV permite mapear columnas, revisar errores y comprobar duplicados. Las listas largas se desplazan dentro del diálogo; los errores conservan el archivo y la selección.
+
 ## Accesibilidad y estados
 
 - Interacciones principales de al menos 44 × 44 px en móvil. Nunca depender de hover.

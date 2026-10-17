@@ -19,6 +19,11 @@ import {
   kindNames,
 } from "./ui";
 import { Donut, MonthlyChart, Sparkline } from "./charts";
+import { DataTools } from "./data-tools";
+import { AvailablePanel, DebtTools } from "./planning-tools";
+import { SharedTools } from "./shared-tools";
+import { BinanceTools, CryptoEntryForm } from "./binance-tools";
+import { debtTotals, planningState } from "@/lib/planning";
 import {
   D,
   balances,
@@ -133,6 +138,27 @@ export function FinanceApp() {
       : null,
     unrealized = knownValue?.minus(wallet.known_cost),
     pendingIds = new Set(pending.map((p) => p.command.id));
+  const debts = debtTotals(state),
+    usdc = inventory(state.movements, "USDC"),
+    usdcReference = planningState(state).usdc_reference,
+    usdcValue = usdcReference
+      ? D(usdc.quantity).mul(usdcReference.price)
+      : null,
+    totalWealth = cash
+      .plus(valuation ?? 0)
+      .plus(usdcValue ?? 0)
+      .plus(debts.net),
+    partialWealth =
+      (!quote && D(wallet.quantity).gt(0)) ||
+      (!usdcReference && D(usdc.quantity).gt(0)),
+    cryptoModal =
+      modal?.type === "movement" &&
+      modal.initial &&
+      ["crypto_in", "crypto_out", "refund", "cashback"].includes(
+        modal.initial.kind,
+      )
+        ? modal.initial
+        : null;
   const changePage = (next: Page) => {
     setPage(next);
     setFilterAccount("");
@@ -509,19 +535,17 @@ export function FinanceApp() {
                     </button>
                   </div>
                   <div className="wealth-value">
-                    {hidden
-                      ? "••••••"
-                      : quote || D(wallet.quantity).isZero()
-                        ? money(cash.plus(valuation ?? 0))
-                        : money(cash)}
+                    {hidden ? "••••••" : money(totalWealth)}
                     <span>BOB</span>
                   </div>
                   <p>
-                    {quoteStale(quote) && D(wallet.quantity).gt(0)
-                      ? "Valoración con la última referencia disponible"
-                      : !quote && D(wallet.quantity).gt(0)
-                        ? "Bancos y efectivo · USDT pendiente de valorar"
-                        : "Tu dinero en bancos, efectivo y USDT"}
+                    {partialWealth
+                      ? "Patrimonio parcial · criptomonedas pendientes de valorar"
+                      : quoteStale(quote) && D(wallet.quantity).gt(0)
+                        ? "Valoración con la última referencia disponible"
+                        : !quote && D(wallet.quantity).gt(0)
+                          ? "Bancos y efectivo · USDT pendiente de valorar"
+                          : "Bancos, efectivo, cripto y deudas netas"}
                   </p>
                   <div className="wealth-breakdown">
                     <div>
@@ -533,14 +557,20 @@ export function FinanceApp() {
                       <strong>
                         {hidden
                           ? "••••"
-                          : valuation
-                            ? money(valuation)
-                            : D(wallet.quantity).isZero()
+                          : valuation || usdcValue
+                            ? `${money(D(valuation ?? 0).plus(usdcValue ?? 0))}${partialWealth ? " · parcial" : ""}`
+                            : D(wallet.quantity).isZero() &&
+                                D(usdc.quantity).isZero()
                               ? money(0)
                               : "Sin referencia"}
                       </strong>
                     </div>
                   </div>
+                  {!debts.net.isZero() && (
+                    <p className="wealth-debt-note">
+                      Incluye deudas netas: {hidden ? "••••" : money(debts.net)}
+                    </p>
+                  )}
                   <div className="wealth-decoration" aria-hidden="true">
                     <i />
                     <i />
@@ -591,6 +621,7 @@ export function FinanceApp() {
                   </button>
                 </section>
               </div>
+              <AvailablePanel hidden={hidden} />
               <div className="quick-actions">
                 <button onClick={() => register("expense")}>
                   <span>
@@ -845,6 +876,8 @@ export function FinanceApp() {
                     ))}
                 </details>
               )}
+              <DebtTools />
+              <SharedTools key={ctx.userId ?? ctx.mode} />
             </div>
           )}
           {page === "binance" && (
@@ -996,6 +1029,7 @@ export function FinanceApp() {
                 onCard={() => register("card")}
                 onGoal={(g) => entity("goal", g)}
               />
+              <BinanceTools onEdit={edit} />
               <p className="valuation-note">
                 <Icon name="AlertCircle" size={16} />
                 La referencia corresponde a{" "}
@@ -1069,7 +1103,14 @@ export function FinanceApp() {
           </button>
         </div>
       )}
-      {modal && (
+      {cryptoModal && (
+        <CryptoEntryForm
+          kind={cryptoModal.kind}
+          initial={cryptoModal}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal && !cryptoModal && (
         <Modal
           title={
             modal.type === "movement"
@@ -1134,6 +1175,7 @@ export function FinanceApp() {
                   ["budgets", "Presupuestos"],
                   ["recurring", "Recurrentes"],
                   ["preferences", "Mi espacio"],
+                  ["data", "Datos"],
                 ].map(([id, label]) => (
                   <button
                     key={id}
@@ -1271,6 +1313,7 @@ export function FinanceApp() {
                   </p>
                 </div>
               )}
+              {settingsTab === "data" && <DataTools />}
             </div>
           )}
           {modal.type === "sync" && (
@@ -1602,6 +1645,10 @@ function MovementsScreen({
             "sell",
             "card",
             "adjustment",
+            "crypto_in",
+            "crypto_out",
+            "refund",
+            "cashback",
           ].map((k) => (
             <option key={k} value={k}>
               {kindNames[k]}
@@ -2092,14 +2139,16 @@ function ReportsScreen({
               label="Gastos del período"
               value={money(summary.expense)}
               note={
-                from === monthRange(month).from &&
-                to === monthRange(month).to &&
-                change !== null
-                  ? `${change.gt(0) ? "+" : ""}${change.toFixed(1)} % vs. mes anterior`
+                D(summary.refunds).gt(0)
+                  ? `Gasto neto · ${money(summary.refunds)} en devoluciones`
                   : from === monthRange(month).from &&
-                      to === monthRange(month).to
-                    ? "Sin base de comparación anterior"
-                    : "Período personalizado"
+                      to === monthRange(month).to &&
+                      change !== null
+                    ? `${change.gt(0) ? "+" : ""}${change.toFixed(1)} % vs. mes anterior`
+                    : from === monthRange(month).from &&
+                        to === monthRange(month).to
+                      ? "Sin base de comparación anterior"
+                      : "Período personalizado"
               }
             />
             <Metric
