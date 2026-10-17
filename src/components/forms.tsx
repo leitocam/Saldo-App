@@ -58,15 +58,18 @@ export function MovementForm({
     [quantity, setQuantity] = useState(
       initial?.usdt_quantity === "0" ? "" : (initial?.usdt_quantity ?? ""),
     ),
+    [merchantAmount, setMerchantAmount] = useState(
+      initial?.card_currency === "BOB" ? "" : (initial?.card_amount ?? ""),
+    ),
     [search, setSearch] = useState(""),
     [error, setError] = useState(""),
     [saving, setSaving] = useState(false);
-  const isCrypto = ["buy", "sell", "opening"].includes(form.kind),
+  const isCrypto = ["buy", "sell", "opening", "card"].includes(form.kind),
     categories = state.categories
       .filter(
         (c) =>
           !c.archived &&
-          c.type === form.kind &&
+          c.type === (form.kind === "card" ? "expense" : form.kind) &&
           c.name.toLowerCase().includes(search.toLowerCase()),
       )
       .sort(
@@ -79,8 +82,16 @@ export function MovementForm({
     setForm((f) => ({
       ...f,
       kind,
+      account_id:
+        kind === "card"
+          ? null
+          : (f.account_id ??
+            state.accounts.find((a) => !a.archived)?.id ??
+            null),
       category_id: null,
       destination_id: null,
+      card_amount: null,
+      card_currency: kind === "card" ? "BOB" : null,
       fee_bob: "0",
       fee_usdt: "0",
       history_only: false,
@@ -93,6 +104,14 @@ export function MovementForm({
       const m = {
         ...form,
         amount_bob: form.kind === "opening" && !amount ? null : decimal(amount),
+        card_amount:
+          form.kind === "card"
+            ? decimal(form.card_currency === "BOB" ? amount : merchantAmount)
+            : null,
+        card_currency:
+          form.kind === "card"
+            ? (form.card_currency?.toUpperCase() ?? null)
+            : null,
         usdt_quantity: isCrypto ? decimal(quantity) : "0",
         fee_bob: decimal(form.fee_bob),
         fee_usdt: isCrypto ? decimal(form.fee_usdt) : "0",
@@ -152,21 +171,24 @@ export function MovementForm({
   return (
     <form onSubmit={save} className="form-stack movement-form">
       <div className="segmented kind-selector">
-        {(["expense", "income", "transfer", "buy", "sell"] as const).map(
-          (kind) => (
-            <button
-              type="button"
-              className={form.kind === kind ? "active" : ""}
-              key={kind}
-              onClick={() => changeKind(kind)}
-            >
-              {kindNames[kind].replace(" de USDT", "")}
-            </button>
-          ),
-        )}
+        {(
+          ["expense", "income", "transfer", "buy", "sell", "card"] as const
+        ).map((kind) => (
+          <button
+            type="button"
+            className={form.kind === kind ? "active" : ""}
+            aria-pressed={form.kind === kind}
+            key={kind}
+            onClick={() => changeKind(kind)}
+          >
+            {kind === "card"
+              ? "Tarjeta"
+              : kindNames[kind].replace(" de USDT", "")}
+          </button>
+        ))}
       </div>
       <div
-        className={`movement-layout ${["expense", "income"].includes(form.kind) ? "has-categories" : ""}`}
+        className={`movement-layout ${["expense", "income", "card"].includes(form.kind) ? "has-categories" : ""} ${form.kind === "card" ? "card-layout" : ""}`}
       >
         <div className="amount-input">
           <label htmlFor="movement-amount">
@@ -174,9 +196,11 @@ export function MovementForm({
               ? "Bolivianos recibidos"
               : form.kind === "buy"
                 ? "Bolivianos pagados"
-                : form.kind === "adjustment"
-                  ? "Diferencia de saldo"
-                  : "Importe en bolivianos"}
+                : form.kind === "card"
+                  ? "Gasto equivalente en bolivianos"
+                  : form.kind === "adjustment"
+                    ? "Diferencia de saldo"
+                    : "Importe en bolivianos"}
           </label>
           <div>
             <span>Bs</span>
@@ -195,7 +219,13 @@ export function MovementForm({
         </div>
         {isCrypto && (
           <Field
-            label={form.kind === "sell" ? "USDT vendidos" : "USDT comprados"}
+            label={
+              form.kind === "sell"
+                ? "USDT vendidos"
+                : form.kind === "card"
+                  ? "USDT descontados de Binance"
+                  : "USDT comprados"
+            }
           >
             <input
               inputMode="decimal"
@@ -206,7 +236,52 @@ export function MovementForm({
             />
           </Field>
         )}
-        {["expense", "income"].includes(form.kind) && (
+        {form.kind === "card" && (
+          <div className="card-merchant-fields">
+            <Field label="Moneda del comercio">
+              <input
+                value={form.card_currency ?? "BOB"}
+                onChange={(e) =>
+                  set(
+                    "card_currency",
+                    e.target.value
+                      .toUpperCase()
+                      .replace(/[^A-Z]/g, "")
+                      .slice(0, 3),
+                  )
+                }
+                maxLength={3}
+                placeholder="BOB"
+                list="card-currencies"
+                required
+              />
+              <datalist id="card-currencies">
+                <option value="BOB" />
+                <option value="USD" />
+                <option value="EUR" />
+              </datalist>
+            </Field>
+            {form.card_currency !== "BOB" && (
+              <Field
+                label={`Importe cobrado en ${form.card_currency || "moneda del comercio"}`}
+              >
+                <input
+                  inputMode="decimal"
+                  value={merchantAmount}
+                  onChange={(e) => setMerchantAmount(e.target.value)}
+                  placeholder="0,00"
+                  required
+                />
+              </Field>
+            )}
+            <p className="quiet">
+              Usa el cargo confirmado por Binance. El equivalente en BOB lo
+              indicas tú para los reportes; la cotización P2P no reemplaza el
+              importe del comercio.
+            </p>
+          </div>
+        )}
+        {["expense", "income", "card"].includes(form.kind) && (
           <div className="category-picker">
             <div className="picker-heading">
               <span>Categoría</span>
@@ -246,28 +321,30 @@ export function MovementForm({
           </div>
         )}
         <div className="form-grid movement-account-fields">
-          <Field
-            label={
-              form.kind === "sell" || form.kind === "income"
-                ? "Recibir en"
-                : "Cuenta"
-            }
-          >
-            <select
-              value={form.account_id ?? ""}
-              onChange={(e) => set("account_id", e.target.value)}
-              required={form.kind !== "opening"}
+          {form.kind !== "card" && (
+            <Field
+              label={
+                form.kind === "sell" || form.kind === "income"
+                  ? "Recibir en"
+                  : "Cuenta"
+              }
             >
-              <option value="">Seleccionar cuenta</option>
-              {state.accounts
-                .filter((a) => !a.archived || a.id === form.account_id)
-                .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-            </select>
-          </Field>
+              <select
+                value={form.account_id ?? ""}
+                onChange={(e) => set("account_id", e.target.value)}
+                required={form.kind !== "opening"}
+              >
+                <option value="">Seleccionar cuenta</option>
+                {state.accounts
+                  .filter((a) => !a.archived || a.id === form.account_id)
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+          )}
           <Field label="Fecha">
             <input
               type="date"
@@ -299,9 +376,11 @@ export function MovementForm({
           <Field label="Descripción (opcional)">
             <input
               placeholder={
-                form.kind === "expense"
-                  ? "¿En qué lo usaste?"
-                  : "Una nota para recordar"
+                form.kind === "card"
+                  ? "Comercio o compra realizada"
+                  : form.kind === "expense"
+                    ? "¿En qué lo usaste?"
+                    : "Una nota para recordar"
               }
               value={form.note}
               onChange={(e) => set("note", e.target.value)}
@@ -309,20 +388,27 @@ export function MovementForm({
             />
           </Field>
         </div>
-        {(["buy", "sell", "transfer"] as string[]).includes(form.kind) && (
+        {(["buy", "sell", "transfer", "card"] as string[]).includes(
+          form.kind,
+        ) && (
           <details className="form-details">
             <summary>
-              Comisiones{isCrypto ? " e historial inicial" : ""}
+              Comisiones
+              {["buy", "sell"].includes(form.kind)
+                ? " e historial inicial"
+                : ""}
               <Icon name="ChevronDown" size={16} />
             </summary>
             <div className="form-grid">
-              <Field label="Comisión en BOB">
-                <input
-                  inputMode="decimal"
-                  value={form.fee_bob}
-                  onChange={(e) => set("fee_bob", e.target.value)}
-                />
-              </Field>
+              {form.kind !== "card" && (
+                <Field label="Comisión en BOB">
+                  <input
+                    inputMode="decimal"
+                    value={form.fee_bob}
+                    onChange={(e) => set("fee_bob", e.target.value)}
+                  />
+                </Field>
+              )}
               {isCrypto && (
                 <Field label="Comisión en USDT">
                   <input
@@ -330,10 +416,16 @@ export function MovementForm({
                     value={form.fee_usdt}
                     onChange={(e) => set("fee_usdt", e.target.value)}
                   />
+                  {form.kind === "card" && (
+                    <small>
+                      Solo si Binance cobró USDT adicionales al importe
+                      anterior.
+                    </small>
+                  )}
                 </Field>
               )}
             </div>
-            {isCrypto && (
+            {["buy", "sell"].includes(form.kind) && (
               <label className="checkbox-row">
                 <input
                   type="checkbox"
@@ -355,7 +447,9 @@ export function MovementForm({
             <div className="form-callout">
               <Icon name="Coins" size={18} />
               <span>
-                Tipo de cambio:{" "}
+                {form.kind === "card"
+                  ? "Equivalente del gasto:"
+                  : "Tipo de cambio:"}{" "}
                 <strong>
                   {money(
                     D(amount.replace(",", ".") || 0).div(

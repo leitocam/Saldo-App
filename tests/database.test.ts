@@ -18,17 +18,18 @@ const login = async (id: string) => {
   await db.exec("set role authenticated");
 };
 const movement = (
-  kind: "buy" | "sell" | "transfer" | "expense",
+  kind: "buy" | "sell" | "transfer" | "expense" | "card",
   amount: string,
   quantity = "0",
   date = "01",
 ) => ({
   ...newMovement(kind),
-  account_id: s.accounts[0].id,
+  account_id: kind === "card" ? null : s.accounts[0].id,
   amount_bob: amount,
   usdt_quantity: quantity,
   occurred_at: `2026-01-${date}T12:00:00-04:00`,
-  category_id: kind === "expense" ? s.categories[0].id : null,
+  category_id:
+    kind === "expense" || kind === "card" ? s.categories[0].id : null,
 });
 beforeAll(async () => {
   db = new PGlite();
@@ -154,6 +155,33 @@ describe.sequential("Postgres real en WASM: comandos y seguridad", () => {
     expect(D(lot.rows[0].quantity).toFixed()).toBe("80");
     s.movements.push(...moves);
   });
+  it("tarjeta registra gasto USDT atómico, sin asiento bancario", async () => {
+    const m = {
+      ...movement("card", "100", "10", "06"),
+      card_amount: "100",
+      card_currency: "BOB",
+      note: "Comercio",
+    };
+    const command = { id: m.id, type: "movement" as const, payload: m };
+    await execute(command);
+    await execute(command);
+    const r = await db.query<{ profit: string; card_amount: string }>(
+      "select realized_profit::text profit,card_amount::text from public.movements where id=$1",
+      [m.id],
+    );
+    expect(r.rows[0].card_amount).toBe("100.00");
+    expect(D(r.rows[0].profit).toFixed(2)).toBe("10.00");
+    const entries = await db.query<{ count: number }>(
+      "select count(*)::int count from public.account_entries where movement_id=$1",
+      [m.id],
+    );
+    expect(entries.rows[0].count).toBe(0);
+    const balance = await db.query<{ quantity: string }>(
+      "select sum(remaining)::text quantity from public.usdt_lots",
+    );
+    expect(D(balance.rows[0].quantity).toFixed()).toBe("70");
+    s.movements.push(m);
+  });
   it("revierte toda la transacción si se intenta vender ahorro reservado", async () => {
     const goal = {
       id: uid(),
@@ -187,7 +215,19 @@ describe.sequential("Postgres real en WASM: comandos y seguridad", () => {
           )
         ).rows[0].quantity,
       ).toFixed(),
-    ).toBe("80");
+    ).toBe("70");
+    const card = {
+      ...movement("card", "200", "20", "07"),
+      card_amount: "200",
+      card_currency: "BOB",
+    };
+    await expect(
+      execute({ id: card.id, type: "movement", payload: card }),
+    ).rejects.toThrow("Libera");
+    expect(
+      (await db.query("select id from public.movements where id=$1", [card.id]))
+        .rows,
+    ).toHaveLength(0);
   });
   it("mantiene decimales como cadenas en la interfaz de lectura", async () => {
     const result = await db.query<{ state: FinanceState }>(

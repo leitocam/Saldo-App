@@ -96,6 +96,56 @@ describe("motor financiero", () => {
     expect(b[s.accounts[0].id]).toBe("10150");
     expect(b[s.accounts[1].id]).toBe("550");
   });
+  it("tarjeta consume USDT por FIFO y cuenta una vez como gasto, sin tocar el banco", () => {
+    const s = fixture();
+    const purchase = move(s, "buy", "700", "100", "01");
+    const card = {
+      ...move(s, "card", "80", "10", "02"),
+      account_id: null,
+      category_id: s.categories.find((c) => c.type === "expense")!.id,
+      card_amount: "11.50",
+      card_currency: "USD",
+      note: "Almuerzo",
+    };
+    s.movements = [purchase];
+    const next = applyCommand(s, {
+      id: card.id,
+      type: "movement",
+      payload: card,
+    });
+    const r = report(next, "2026-01-01", "2026-01-31");
+    expect(r.expense).toBe("80");
+    expect(r.income).toBe("0");
+    expect(r.card).toBe("80");
+    expect(r.expensesByCategory[0].amount).toBe("80");
+    expect(balances(next)[s.accounts[0].id]).toBe("9300");
+    expect(inventory(next.movements).quantity).toBe("90");
+    expect(D(inventory(next.movements).sales[0].profit).toFixed(2)).toBe(
+      "10.00",
+    );
+    const edited = {
+      ...card,
+      amount_bob: "160",
+      card_amount: "23",
+      usdt_quantity: "20",
+    };
+    const corrected = applyCommand(next, {
+      id: card.id,
+      type: "movement",
+      payload: edited,
+      expected_version: 1,
+    });
+    expect(inventory(corrected.movements).quantity).toBe("80");
+    const voided = applyCommand(corrected, {
+      id: card.id,
+      type: "void",
+      payload: {},
+      expected_version: 2,
+    });
+    expect(inventory(voided.movements).quantity).toBe("100");
+    expect(report(voided, "2026-01-01", "2026-01-31").expense).toBe("0");
+    expect(balances(voided)[s.accounts[0].id]).toBe("9300");
+  });
   it("incluye comisiones BOB y USDT sin perder precisión", () => {
     const s = fixture();
     s.movements = [
@@ -206,6 +256,21 @@ describe("motor financiero", () => {
       c = { id: m.id, type: "movement" as const, payload: m };
     const next = applyCommand(applyCommand(s, c), c);
     expect(next.movements).toHaveLength(1);
+  });
+  it("conserva comandos sin conexión de versiones anteriores a Binance Card", () => {
+    const s = fixture();
+    const legacy: Record<string, unknown> = { ...move(s, "expense", "10") };
+    delete legacy.card_amount;
+    delete legacy.card_currency;
+    const command = {
+      id: legacy.id as string,
+      type: "movement" as const,
+      payload: legacy,
+    };
+    const next = applyCommand(s, command);
+    expect(next.movements[0].card_amount).toBeNull();
+    s.movements = [legacy as unknown as Movement];
+    expect(applyCommand(s, command).movements).toHaveLength(1);
   });
   it("usa fechas de La Paz y conserva ancla de fin de mes", () => {
     expect(localDay("2026-02-01T02:30:00Z")).toBe("2026-01-31");

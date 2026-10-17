@@ -58,7 +58,9 @@ export function inventory(movements: Movement[]): Inventory {
   const lots: Lot[] = [],
     sales: SaleResult[] = [];
   const ordered = movements
-    .filter((m) => !m.voided && ["buy", "sell", "opening"].includes(m.kind))
+    .filter(
+      (m) => !m.voided && ["buy", "sell", "opening", "card"].includes(m.kind),
+    )
     .sort(
       (a, b) =>
         Date.parse(a.occurred_at) - Date.parse(b.occurred_at) ||
@@ -95,7 +97,7 @@ export function inventory(movements: Movement[]): Inventory {
       }
       if (remaining.gt(0))
         throw new Error(
-          "No tienes suficientes USDT para esta venta, incluida su comisión.",
+          "No tienes suficientes USDT para esta operación, incluida su comisión.",
         );
       sales.push({
         id: m.id,
@@ -182,13 +184,15 @@ export function report(
       .filter((m) => m.kind === kind)
       .reduce((a, m) => a.plus(D(m.amount_bob)), D(0));
   const income = sum("income"),
-    expense = sum("expense");
+    expense = sum("expense").plus(sum("card"));
   const expensesByCategory = s.categories
     .filter((c) => c.type === "expense")
     .map((c) => ({
       ...c,
       amount: movements
-        .filter((m) => m.kind === "expense" && m.category_id === c.id)
+        .filter(
+          (m) => ["expense", "card"].includes(m.kind) && m.category_id === c.id,
+        )
         .reduce((a, m) => a.plus(D(m.amount_bob)), D(0))
         .toFixed(),
     }))
@@ -208,6 +212,7 @@ export function report(
     incompleteSales: sales.some((x) => x.profit === null),
     buy: sum("buy").toFixed(),
     sell: sum("sell").toFixed(),
+    card: sum("card").toFixed(),
   };
 }
 export function monthRange(month: string) {
@@ -253,6 +258,8 @@ export function csv(s: FinanceState, movements: Movement[]) {
         "Destino",
         "Categoría",
         "BOB",
+        "Importe comercio",
+        "Moneda comercio",
         "USDT",
         "Comisión BOB",
         "Comisión USDT",
@@ -265,6 +272,8 @@ export function csv(s: FinanceState, movements: Movement[]) {
         accounts[m.destination_id ?? ""] ?? "",
         cats[m.category_id ?? ""] ?? "",
         m.amount_bob ?? "",
+        m.card_amount ?? "",
+        m.card_currency ?? "",
         m.usdt_quantity,
         m.fee_bob,
         m.fee_usdt,

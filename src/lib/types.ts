@@ -5,6 +5,7 @@ export type Kind =
   | "transfer"
   | "buy"
   | "sell"
+  | "card"
   | "opening"
   | "adjustment";
 export type Account = {
@@ -34,6 +35,8 @@ export type Movement = {
   destination_id: string | null;
   category_id: string | null;
   amount_bob: string | null;
+  card_amount: string | null;
+  card_currency: string | null;
   usdt_quantity: string;
   fee_bob: string;
   fee_usdt: string;

@@ -51,6 +51,7 @@ import {
   Eye,
   EyeOff,
   Coins,
+  CreditCard,
   ArrowLeft,
   LoaderCircle,
   Menu,
@@ -109,6 +110,7 @@ const icons = {
   Eye,
   EyeOff,
   Coins,
+  CreditCard,
   ArrowLeft,
   LoaderCircle,
   Menu,
@@ -298,6 +300,7 @@ export const kindNames: Record<string, string> = {
   transfer: "Transferencia",
   buy: "Compra de USDT",
   sell: "Venta de USDT",
+  card: "Gasto con Binance Card",
   opening: "Saldo inicial USDT",
   adjustment: "Ajuste de saldo",
 };
@@ -318,14 +321,16 @@ export function MovementRow({
     incoming =
       ["income", "sell"].includes(m.kind) ||
       (m.kind === "adjustment" && D(m.amount_bob).gte(0)),
-    spend = m.kind === "expense";
+    spend = m.kind === "expense" || m.kind === "card";
   const icon =
     cat?.icon ??
     (m.kind === "transfer"
       ? "ArrowLeftRight"
-      : m.kind === "buy" || m.kind === "sell"
-        ? "Coins"
-        : "Wallet");
+      : m.kind === "card"
+        ? "CreditCard"
+        : m.kind === "buy" || m.kind === "sell"
+          ? "Coins"
+          : "Wallet");
   return (
     <button className="movement-row" onClick={onClick}>
       <span
@@ -340,7 +345,8 @@ export function MovementRow({
       <span className="movement-copy">
         <strong>{m.note || cat?.name || kindNames[m.kind]}</strong>
         <small>
-          {account?.name ?? "Historial inicial"}
+          {account?.name ??
+            (m.kind === "card" ? "Binance Card" : "Historial inicial")}
           {destination ? ` → ${destination.name}` : ""}
           <span className="dot">·</span>
           {displayDate(m.occurred_at)}

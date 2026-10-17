@@ -13,6 +13,77 @@
   --sidebar: 236px;
   color-scheme: dark;
 }
+
+/* Binance Card keeps the receipt currency visible without crowding mobile forms. */
+.kind-selector {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.kind-selector > button {
+  flex: 1 0 auto;
+}
+.card-merchant-fields {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.card-merchant-fields .quiet {
+  margin: 0;
+  line-height: 1.5;
+}
+.binance-detail .underline-tabs {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  max-width: 100%;
+}
+.binance-detail .underline-tabs > button {
+  flex: 0 0 auto;
+}
+.binance-detail .underline-tabs > button.active::after {
+  bottom: 0;
+}
+.account-report > .card-account-report {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  width: 100%;
+}
+.account-report > .card-account-report > strong {
+  margin-left: auto;
+}
+@media (max-width: 760px) {
+  .movement-form .kind-selector {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 761px) {
+  .movement-layout.card-layout.has-categories > .amount-input {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .movement-layout.card-layout.has-categories > .field {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .movement-layout.card-layout.has-categories > .card-merchant-fields {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .movement-layout.card-layout.has-categories > .movement-account-fields {
+    grid-column: 1;
+    grid-row: 4;
+  }
+  .movement-layout.card-layout.has-categories > .movement-description {
+    grid-column: 1;
+    grid-row: 5;
+  }
+  .movement-layout.card-layout.has-categories > .category-picker {
+    grid-column: 2;
+    grid-row: 1 / 6;
+  }
+}
 * {
   box-sizing: border-box;
 }

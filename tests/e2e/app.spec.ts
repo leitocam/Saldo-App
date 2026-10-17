@@ -85,6 +85,60 @@ test("registra un gasto con coma, persiste y permite corregirlo", async ({
     page.getByRole("button", { name: /Prueba de gasto persistente/ }),
   ).toHaveCount(0);
 });
+test("registra un consumo con Binance Card y conserva su moneda original", async ({
+  page,
+}, info) => {
+  await navigate(page, "Binance");
+  await page
+    .locator(".underline-tabs")
+    .getByRole("button", { name: /^Tarjeta/ })
+    .click();
+  await page
+    .getByRole("button", { name: "Registrar gasto", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Importe en bolivianos").fill("80");
+  await dialog.getByLabel("USDT descontados de Binance").fill("10");
+  await dialog.getByLabel("Moneda del comercio").fill("USD");
+  await dialog.getByLabel("Importe cobrado en USD").fill("11,50");
+  await dialog.getByRole("button", { name: "Gym", exact: true }).click();
+  await dialog
+    .getByLabel("Descripción (opcional)")
+    .fill("Compra con tarjeta de prueba");
+  await page.screenshot({
+    path: `artifacts/${info.project.name}-binance-card-form.png`,
+  });
+  await dialog.getByRole("button", { name: "Guardar movimiento" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page
+      .locator(".binance-detail .crypto-row")
+      .filter({ hasText: "Compra con tarjeta de prueba" }),
+  ).toContainText(/11[.,]50? USD/);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    )
+    .toBe(true);
+  await page.screenshot({
+    path: `artifacts/${info.project.name}-binance-card.png`,
+  });
+  await page
+    .locator(".binance-detail .crypto-row")
+    .filter({ hasText: "Compra con tarjeta de prueba" })
+    .click();
+  await expect(dialog.getByLabel("Moneda del comercio")).toHaveValue("USD");
+  await expect(dialog.getByLabel("Importe cobrado en USD")).toHaveValue(
+    /11[.,]50?/,
+  );
+  await expect(dialog.getByLabel("USDT descontados de Binance")).toHaveValue(
+    "10",
+  );
+  await expect(dialog.getByLabel("Cuenta", { exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+});
 test("configura espacio propio, conserva USDT sin costo y separa demo", async ({
   page,
 }) => {

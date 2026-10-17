@@ -64,7 +64,9 @@ Una tarjeta por cuenta: identificador visual, nombre, saldo, moneda y acciones M
 
 ### Binance
 
-Saldo en USDT como cifra principal y equivalencia en BOB como estimación. Disponible y reservado permanecen juntos para entender el total. La referencia muestra fuente, fecha y estado. Los resultados distinguen costo, ganancia estimada y ganancia realizada. Las pestañas Ingresos / Egresos / Ahorro separan compras, ventas y metas. Los lotes se convierten en filas compactas en móvil.
+Saldo en USDT como cifra principal y equivalencia en BOB como estimación. Disponible y reservado permanecen juntos para entender el total. La referencia muestra fuente, fecha y estado. Los resultados distinguen costo, ganancia estimada y resultado de USDT usados. Las pestañas Ingresos / Egresos / Tarjeta / Ahorro separan compras, ventas, consumos y metas. Los lotes se convierten en filas compactas en móvil.
+
+Tarjeta abre el mismo formulario rápido con gasto equivalente en BOB, USDT realmente descontados, categoría y comercio. Si el cargo original fue en otra moneda, se conserva importe y código de moneda por separado. El formulario aclara que se registran cargos completados y que el equivalente BOB se introduce manualmente. En escritorio, los datos quedan a la izquierda y la selección de categorías a la derecha; en móvil mantienen un orden vertical. Los tipos de movimiento se distribuyen en dos filas de tres botones en móvil y las pestañas de Binance pueden desplazarse dentro de su barra desde 360 px, sin ensanchar la página.
 
 ### Reportes
 

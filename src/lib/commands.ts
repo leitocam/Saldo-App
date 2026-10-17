@@ -21,16 +21,26 @@ export function equivalentMovement(a: Movement, b: Movement) {
     "note",
     "history_only",
     "recurring_key",
+    "card_currency",
   ] as const;
   return (
-    fields.every((k) => a[k] === b[k]) &&
+    fields.every((k) => (a[k] ?? null) === (b[k] ?? null)) &&
     Date.parse(a.occurred_at) === Date.parse(b.occurred_at) &&
-    ["amount_bob", "usdt_quantity", "fee_bob", "fee_usdt"].every((k) => {
-      const key = k as "amount_bob" | "usdt_quantity" | "fee_bob" | "fee_usdt";
-      return a[key] === null || b[key] === null
-        ? a[key] === b[key]
-        : D(a[key]).eq(D(b[key]));
-    })
+    ["amount_bob", "card_amount", "usdt_quantity", "fee_bob", "fee_usdt"].every(
+      (k) => {
+        const key = k as
+          | "amount_bob"
+          | "card_amount"
+          | "usdt_quantity"
+          | "fee_bob"
+          | "fee_usdt";
+        const left = a[key] ?? null,
+          right = b[key] ?? null;
+        return left === null || right === null
+          ? left === right
+          : D(left).eq(D(right));
+      },
+    )
   );
 }
 function sameEntity(a: unknown, b: unknown): boolean {
@@ -70,6 +80,7 @@ export const movementSchema = z.object({
     "transfer",
     "buy",
     "sell",
+    "card",
     "opening",
     "adjustment",
   ]),
@@ -77,6 +88,12 @@ export const movementSchema = z.object({
   destination_id: uuid.nullable(),
   category_id: uuid.nullable(),
   amount_bob: amount.nullable(),
+  card_amount: amount.nullable().default(null),
+  card_currency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .nullable()
+    .default(null),
   usdt_quantity: positive,
   fee_bob: positive,
   fee_usdt: positive,
@@ -183,20 +200,39 @@ export const entitySchemas = {
 };
 export function validateMovement(m: Movement, s: FinanceState) {
   const a = s.accounts.find((a) => a.id === m.account_id);
-  if (m.kind !== "opening" && (!a || a.archived))
+  if (!["opening", "card"].includes(m.kind) && (!a || a.archived))
     throw new Error("Elige una cuenta activa.");
+  if (m.kind === "card" && m.account_id !== null)
+    throw new Error("La tarjeta descuenta USDT, no una cuenta bancaria.");
   if (m.kind !== "opening" && m.amount_bob === null)
     throw new Error("Falta el importe en bolivianos.");
   if (m.amount_bob !== null && D(m.amount_bob).decimalPlaces() > 2)
     throw new Error("Los bolivianos admiten dos decimales.");
   if (D(m.fee_bob).decimalPlaces() > 2)
     throw new Error("La comisión en BOB admite dos decimales.");
+  if (m.kind === "card") {
+    if (
+      m.card_amount === null ||
+      D(m.card_amount).lte(0) ||
+      D(m.card_amount).decimalPlaces() > 2 ||
+      !m.card_currency
+    )
+      throw new Error("Indica el importe y la moneda del comercio.");
+    if (m.card_currency === "BOB" && !D(m.card_amount).eq(D(m.amount_bob)))
+      throw new Error(
+        "El importe del comercio en BOB debe coincidir con el gasto.",
+      );
+  } else if (m.card_amount !== null || m.card_currency !== null)
+    throw new Error("Solo la tarjeta utiliza importe del comercio.");
   if (m.kind !== "adjustment" && m.kind !== "opening" && D(m.amount_bob).lte(0))
     throw new Error("El importe debe ser mayor que cero.");
   if (
-    ["expense", "income"].includes(m.kind) &&
+    ["expense", "income", "card"].includes(m.kind) &&
     !s.categories.some(
-      (c) => c.id === m.category_id && c.type === m.kind && !c.archived,
+      (c) =>
+        c.id === m.category_id &&
+        c.type === (m.kind === "card" ? "expense" : m.kind) &&
+        !c.archived,
     )
   )
     throw new Error("Elige una categoría válida.");
@@ -206,15 +242,18 @@ export function validateMovement(m: Movement, s: FinanceState) {
       !s.accounts.some((a) => a.id === m.destination_id && !a.archived))
   )
     throw new Error("Elige otra cuenta de destino.");
-  if (["buy", "sell", "opening"].includes(m.kind) && D(m.usdt_quantity).lte(0))
+  if (
+    ["buy", "sell", "opening", "card"].includes(m.kind) &&
+    D(m.usdt_quantity).lte(0)
+  )
     throw new Error("La cantidad de USDT debe ser mayor que cero.");
   if (
-    !["buy", "sell", "opening"].includes(m.kind) &&
+    !["buy", "sell", "opening", "card"].includes(m.kind) &&
     (!D(m.usdt_quantity).isZero() || !D(m.fee_usdt).isZero())
   )
     throw new Error("Esta operación no usa USDT.");
   if (
-    ["expense", "income", "adjustment", "opening"].includes(m.kind) &&
+    ["expense", "income", "adjustment", "opening", "card"].includes(m.kind) &&
     !D(m.fee_bob).isZero()
   )
     throw new Error("Registra la comisión como un gasto separado.");
@@ -226,7 +265,7 @@ export function validateMovement(m: Movement, s: FinanceState) {
     throw new Error("La apertura debe pertenecer al historial inicial.");
   if (m.kind === "opening" && m.amount_bob !== null && D(m.amount_bob).lt(0))
     throw new Error("El costo de apertura no puede ser negativo.");
-  if (!["expense", "income"].includes(m.kind) && m.category_id !== null)
+  if (!["expense", "income", "card"].includes(m.kind) && m.category_id !== null)
     throw new Error("Esta operación no utiliza categoría.");
   if (m.kind !== "transfer" && m.destination_id !== null)
     throw new Error("Esta operación no utiliza cuenta de destino.");

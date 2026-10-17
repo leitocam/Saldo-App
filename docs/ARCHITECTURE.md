@@ -2,6 +2,8 @@
 
 ## Capas
 
+Un cargo completado de Binance Card se representa como movimiento `card`: conserva el importe y moneda del comercio, el equivalente BOB declarado, los USDT descontados, fecha, categoría y descripción. No genera asiento bancario; sí consume lotes USDT por FIFO y se suma una sola vez al gasto personal y presupuesto de la categoría. La diferencia entre equivalente BOB y costo FIFO se presenta como resultado del USDT usado. Una edición o anulación reconstruye lotes y resultados dentro de la transacción SQL. Este flujo aún no incluye cargos pendientes, reembolsos ni consumos en otras criptomonedas.
+
 La página Next.js monta el controlador React y una interfaz de cinco secciones. `finance.ts` utiliza Decimal.js para proyecciones de saldo, reportes y FIFO; `commands.ts` valida comandos y produce un nuevo estado sin modificar el anterior. `storage.ts` conserva estado y pendientes en IndexedDB, con claves separadas para demostración, local y cada usuario autenticado.
 
 En nube, las rutas autentican mediante Supabase SSR y aceptan cualquier usuario autenticado. El registro público utiliza correo y contraseña, sin confirmación por correo según la preferencia del propietario. Cada usuario tiene su propio espacio, sin vincular ni compartir automáticamente distintos correos. La clave publicable respeta RLS y los comandos exigen `auth.uid()`. `read_finance_state` devuelve importes como texto: evita la pérdida de precisión al leer números JSON. La API no requiere `service_role`.

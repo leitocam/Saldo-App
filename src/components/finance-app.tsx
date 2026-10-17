@@ -164,7 +164,7 @@ export function FinanceApp() {
     initial?: Account | Category | Goal | Budget | Recurring | Profile | Quote,
   ) => setModal({ type: "entity", entity: e, initial });
   const register = (kind: Movement["kind"] = "expense") => {
-    if (!state.accounts.some((a) => !a.archived)) {
+    if (kind !== "card" && !state.accounts.some((a) => !a.archived)) {
       notify("Añade una cuenta para registrar movimientos.");
       entity("account");
       return;
@@ -174,13 +174,15 @@ export function FinanceApp() {
       initial: {
         ...newMovement(kind),
         account_id:
-          state.accounts.find(
-            (a) =>
-              !a.archived &&
-              a.id === localStorage.getItem(`saldo-last-account-${mode}`),
-          )?.id ??
-          state.accounts.find((a) => !a.archived)?.id ??
-          null,
+          kind === "card"
+            ? null
+            : (state.accounts.find(
+                (a) =>
+                  !a.archived &&
+                  a.id === localStorage.getItem(`saldo-last-account-${mode}`),
+              )?.id ??
+              state.accounts.find((a) => !a.archived)?.id ??
+              null),
       },
     });
   };
@@ -970,15 +972,17 @@ export function FinanceApp() {
                   }
                 />
                 <Metric
-                  label="Ganancia de ventas realizadas"
+                  label="Resultado de USDT usados"
                   value={money(
                     wallet.sales.reduce((s, x) => s.plus(x.profit ?? 0), D(0)),
                   )}
-                  positive
+                  positive={wallet.sales
+                    .reduce((s, x) => s.plus(x.profit ?? 0), D(0))
+                    .gte(0)}
                   note={
                     wallet.sales.some((x) => x.profit === null)
-                      ? "Parcial · hay ventas con costo incompleto"
-                      : "Bolivianos recibidos menos costo FIFO"
+                      ? "Parcial · hay operaciones con costo incompleto"
+                      : "Ventas y gastos con tarjeta menos costo FIFO"
                   }
                 />
               </div>
@@ -989,6 +993,7 @@ export function FinanceApp() {
                 onEdit={edit}
                 onBuy={() => register("buy")}
                 onSell={() => register("sell")}
+                onCard={() => register("card")}
                 onGoal={(g) => entity("goal", g)}
               />
               <p className="valuation-note">
@@ -1589,13 +1594,19 @@ function MovementsScreen({
           onChange={(e) => setKind(e.target.value)}
         >
           <option value="">Todos los tipos</option>
-          {["expense", "income", "transfer", "buy", "sell", "adjustment"].map(
-            (k) => (
-              <option key={k} value={k}>
-                {kindNames[k]}
-              </option>
-            ),
-          )}
+          {[
+            "expense",
+            "income",
+            "transfer",
+            "buy",
+            "sell",
+            "card",
+            "adjustment",
+          ].map((k) => (
+            <option key={k} value={k}>
+              {kindNames[k]}
+            </option>
+          ))}
         </select>
         <Button icon="SlidersHorizontal" onClick={() => setFilters(!filters)}>
           Filtros
@@ -1716,6 +1727,7 @@ function BinanceTabs({
   onEdit,
   onBuy,
   onSell,
+  onCard,
   onGoal,
 }: {
   state: FinanceState;
@@ -1724,6 +1736,7 @@ function BinanceTabs({
   onEdit: (m: Movement) => void;
   onBuy: () => void;
   onSell: () => void;
+  onCard: () => void;
   onGoal: (g?: Goal) => void;
 }) {
   const [tab, setTab] = useState("buy"),
@@ -1733,7 +1746,7 @@ function BinanceTabs({
           !m.voided &&
           (tab === "buy"
             ? ["buy", "opening"].includes(m.kind)
-            : m.kind === "sell"),
+            : m.kind === tab),
       )
       .sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at));
   return (
@@ -1743,11 +1756,13 @@ function BinanceTabs({
           {[
             ["buy", "Ingresos"],
             ["sell", "Egresos"],
+            ["card", "Tarjeta"],
             ["goals", "Ahorro"],
           ].map(([id, label]) => (
             <button
               key={id}
               className={tab === id ? "active" : ""}
+              aria-pressed={tab === id}
               onClick={() => setTab(id)}
             >
               {label}
@@ -1759,7 +1774,7 @@ function BinanceTabs({
                         !m.voided &&
                         (id === "buy"
                           ? ["buy", "opening"].includes(m.kind)
-                          : m.kind === "sell"),
+                          : m.kind === id),
                     ).length}
               </span>
             </button>
@@ -1769,14 +1784,22 @@ function BinanceTabs({
           icon="Plus"
           className="primary"
           onClick={() =>
-            tab === "goals" ? onGoal() : tab === "buy" ? onBuy() : onSell()
+            tab === "goals"
+              ? onGoal()
+              : tab === "buy"
+                ? onBuy()
+                : tab === "card"
+                  ? onCard()
+                  : onSell()
           }
         >
           {tab === "goals"
             ? "Nueva meta"
             : tab === "buy"
               ? "Registrar compra"
-              : "Registrar venta"}
+              : tab === "card"
+                ? "Registrar gasto"
+                : "Registrar venta"}
         </Button>
       </div>
       {tab === "goals" ? (
@@ -1859,13 +1882,23 @@ function BinanceTabs({
           <p className="table-description">
             {tab === "buy"
               ? "Cada compra conserva su costo y cantidad restante. El historial inicial no vuelve a descontar dinero de tus bancos."
-              : "Las ventas consumen primero las compras más antiguas. La ganancia se calcula con los bolivianos realmente recibidos."}
+              : tab === "card"
+                ? "Registra cargos completados. Cada gasto usa USDT por FIFO, cuenta en tu categoría y no descuenta BOB de un banco."
+                : "Las ventas consumen primero las compras más antiguas. La ganancia se calcula con los bolivianos realmente recibidos."}
           </p>
           <div className="crypto-table-header">
-            <span>{tab === "buy" ? "Compra" : "Venta"}</span>
+            <span>
+              {tab === "buy" ? "Compra" : tab === "card" ? "Comercio" : "Venta"}
+            </span>
             <span>USDT</span>
             <span>{tab === "buy" ? "Costo efectivo" : "Resultado FIFO"}</span>
-            <span>{tab === "buy" ? "Restantes" : "BOB recibidos"}</span>
+            <span>
+              {tab === "buy"
+                ? "Restantes"
+                : tab === "card"
+                  ? "Gasto BOB"
+                  : "BOB recibidos"}
+            </span>
           </div>
           {items.map((m) => {
             const lot = wallet.lots.find((l) => l.id === m.id),
@@ -1881,16 +1914,24 @@ function BinanceTabs({
                   <small>
                     {displayDate(m.occurred_at)}
                     {m.history_only ? " · Historial inicial" : ""}
+                    {tab === "card" &&
+                      m.card_amount &&
+                      m.card_currency &&
+                      ` · ${m.card_amount} ${m.card_currency}`}
                   </small>
                 </span>
                 <strong>
-                  {units(m.usdt_quantity)}
+                  {units(
+                    tab === "card"
+                      ? D(m.usdt_quantity).plus(m.fee_usdt)
+                      : m.usdt_quantity,
+                  )}
                   <small>USDT</small>
                 </strong>
                 <span>
                   <strong
                     className={
-                      tab === "sell" && sale?.profit && D(sale.profit).gte(0)
+                      tab !== "buy" && sale?.profit && D(sale.profit).gte(0)
                         ? "positive"
                         : ""
                     }
@@ -1904,7 +1945,11 @@ function BinanceTabs({
                         : "Costo incompleto"}
                   </strong>
                   <small>
-                    {tab === "buy" ? "BOB / USDT" : "Ganancia realizada"}
+                    {tab === "buy"
+                      ? "BOB / USDT"
+                      : tab === "card"
+                        ? "Diferencia vs. costo FIFO"
+                        : "Ganancia realizada"}
                   </small>
                 </span>
                 <span>
@@ -1923,7 +1968,9 @@ function BinanceTabs({
               title={
                 tab === "buy"
                   ? "Tus compras empiezan aquí"
-                  : "Todavía no has registrado ventas"
+                  : tab === "card"
+                    ? "Aún no registraste gastos con tarjeta"
+                    : "Todavía no has registrado ventas"
               }
               description="Registra una operación para conservar su costo y resultado."
               icon="Coins"
@@ -2126,6 +2173,11 @@ function ReportsScreen({
                     </button>
                   );
                 })}
+                <div className="card-account-report">
+                  <Icon name="CreditCard" size={18} />
+                  <span>Binance Card</span>
+                  <strong>{money(summary.card)}</strong>
+                </div>
               </div>
             </section>
             <section className="panel">
@@ -2151,7 +2203,7 @@ function ReportsScreen({
                 </div>
                 <div>
                   <span>
-                    Costo FIFO vendido
+                    Costo FIFO consumido
                     {summary.incompleteSales ? " · parcial" : ""}
                   </span>
                   <strong>
@@ -2176,8 +2228,9 @@ function ReportsScreen({
                   </strong>
                 </div>
                 <p>
-                  Compras, ventas y transferencias se muestran por separado de
-                  tus ingresos y gastos personales.
+                  Las compras de USDT y transferencias no son gasto personal.
+                  Los consumos de Binance Card sí figuran como gasto por
+                  categoría; las ventas no son ingreso personal.
                 </p>
               </div>
             </section>

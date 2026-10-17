@@ -55,6 +55,8 @@ export function newMovement(kind: Movement["kind"] = "expense"): Movement {
     destination_id: null,
     category_id: null,
     amount_bob: "0",
+    card_amount: null,
+    card_currency: kind === "card" ? "BOB" : null,
     usdt_quantity: "0",
     fee_bob: "0",
     fee_usdt: "0",
