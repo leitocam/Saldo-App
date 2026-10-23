@@ -2028,6 +2028,12 @@ function BinanceTabs({
     </section>
   );
 }
+function shiftReportDay(day: string, offset: number) {
+  const date = new Date(`${day}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
 function ReportsScreen({
   state,
   month,
@@ -2053,12 +2059,35 @@ function ReportsScreen({
     setTo(monthRange(month).to);
   }, [month]);
   const summary = report(state, from, to, account),
-    prevRange = monthRange(previousMonth(month)),
-    previous = report(state, prevRange.from, prevRange.to, account),
-    change = D(previous.expense).gt(0)
+    rawPeriodDays =
+      Math.floor(
+        (Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) /
+          86400000,
+      ) + 1,
+    periodDays =
+      from && to && Number.isFinite(rawPeriodDays) && rawPeriodDays > 0
+        ? rawPeriodDays
+        : 0,
+    validMonth = from ? monthRange(from.slice(0, 7)) : null,
+    calendarMonth =
+      !!validMonth && from === validMonth.from && to === validMonth.to,
+    previousPeriod = calendarMonth
+      ? monthRange(previousMonth(from.slice(0, 7)))
+      : null,
+    comparisonTo = periodDays
+      ? shiftReportDay(from, -1)
+      : shiftReportDay(today(), -1),
+    comparisonFrom =
+      previousPeriod?.from ??
+      (periodDays
+        ? shiftReportDay(comparisonTo, 1 - periodDays)
+        : comparisonTo),
+    effectiveComparisonTo = previousPeriod?.to ?? comparisonTo,
+    previous = report(state, comparisonFrom, effectiveComparisonTo, account),
+    change = D(previous.expense).abs().gt(0)
       ? D(summary.expense)
           .minus(previous.expense)
-          .div(previous.expense)
+          .div(D(previous.expense).abs())
           .mul(100)
       : null;
   const monthly = [];
@@ -2072,12 +2101,75 @@ function ReportsScreen({
         ? valuation.minus(holdings.known_cost)
         : null;
   let m = month;
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 12; i++) {
     const r = monthRange(m),
       s = report(state, r.from, r.to, account);
     monthly.unshift({ month: m, income: s.income, expense: s.expense });
     m = previousMonth(m);
   }
+  const monthlyDetails = monthly.map((item) => {
+      const range = monthRange(item.month),
+        result = report(state, range.from, range.to, account);
+      return { ...item, ...result };
+    }),
+    maxMonthlyExpense = Math.max(
+      1,
+      ...monthlyDetails.map((item) => D(item.expense).toNumber()),
+    ),
+    categoryDetails = summary.expensesByCategory.map((category) => {
+      const prior = previous.expensesByCategory.find(
+        (item) => item.id === category.id,
+      );
+      const count = summary.movements.filter(
+        (item) =>
+          item.category_id === category.id &&
+          (item.kind === "expense" || item.kind === "card"),
+      ).length;
+      return {
+        ...category,
+        count,
+        previous: prior?.amount ?? "0",
+      };
+    }),
+    consumptions = summary.movements.filter(
+      (item) => item.kind === "expense" || item.kind === "card",
+    ),
+    dailyTotals = new Map<string, ReturnType<typeof D>>();
+  for (const item of summary.movements) {
+    if (!item.category_id || !["expense", "card", "refund"].includes(item.kind))
+      continue;
+    const day = localDay(item.occurred_at),
+      sign = item.kind === "refund" ? -1 : 1;
+    dailyTotals.set(
+      day,
+      (dailyTotals.get(day) ?? D(0)).plus(D(item.amount_bob).mul(sign)),
+    );
+  }
+  const largestDay = [...dailyTotals.entries()].reduce<
+    { date: string; amount: ReturnType<typeof D> } | undefined
+  >(
+    (largest, [date, amount]) =>
+      !largest || amount.gt(largest.amount) ? { date, amount } : largest,
+    undefined,
+  );
+  const positiveCategorySpend = categoryDetails.reduce(
+    (sum, item) => sum.plus(item.amount),
+    D(0),
+  );
+  const topThreeShare = positiveCategorySpend.gt(0)
+    ? categoryDetails
+        .slice(0, 3)
+        .reduce((sum, item) => sum.plus(item.amount), D(0))
+        .div(positiveCategorySpend)
+        .mul(100)
+    : D(0);
+  const changeLabel = (current: string, prior: string) => {
+    if (D(prior).abs().gt(0)) {
+      const percent = D(current).minus(prior).div(D(prior).abs()).mul(100);
+      return `${percent.gt(0) ? "+" : ""}${percent.toFixed(1)} %`;
+    }
+    return D(current).gt(0) ? "Nuevo" : "—";
+  };
   return (
     <div className="page-enter">
       <div className="report-filters">
@@ -2138,18 +2230,7 @@ function ReportsScreen({
             <Metric
               label="Gastos del período"
               value={money(summary.expense)}
-              note={
-                D(summary.refunds).gt(0)
-                  ? `Gasto neto · ${money(summary.refunds)} en devoluciones`
-                  : from === monthRange(month).from &&
-                      to === monthRange(month).to &&
-                      change !== null
-                    ? `${change.gt(0) ? "+" : ""}${change.toFixed(1)} % vs. mes anterior`
-                    : from === monthRange(month).from &&
-                        to === monthRange(month).to
-                      ? "Sin base de comparación anterior"
-                      : "Período personalizado"
-              }
+              note={`${change !== null ? `${change.gt(0) ? "+" : ""}${change.toFixed(1)} % vs. período anterior · ` : "Sin base anterior · "}${D(summary.refunds).gt(0) ? `${money(summary.refunds)} en devoluciones` : `${periodDays} días`}`}
             />
             <Metric
               label="Diferencia del período"
@@ -2158,6 +2239,58 @@ function ReportsScreen({
               positive={D(summary.net).gte(0)}
             />
           </div>
+          <section
+            className="report-insights"
+            aria-label="Estadísticas avanzadas"
+          >
+            <div className="report-insight">
+              <span>Gasto promedio diario</span>
+              <strong>
+                {periodDays > 0
+                  ? money(D(summary.expense).div(periodDays))
+                  : "—"}
+              </strong>
+              <small>Gasto neto ÷ {periodDays} días del período</small>
+            </div>
+            <div className="report-insight">
+              <span>Ticket promedio</span>
+              <strong>
+                {consumptions.length
+                  ? money(D(summary.expense).div(consumptions.length))
+                  : "—"}
+              </strong>
+              <small>Gasto neto ÷ {consumptions.length} consumos</small>
+            </div>
+            <div className="report-insight">
+              <span>Tasa de ahorro</span>
+              <strong className={D(summary.net).gte(0) ? "positive" : "danger"}>
+                {D(summary.income).gt(0)
+                  ? `${D(summary.net).div(summary.income).mul(100).toFixed(1)} %`
+                  : "Sin ingresos"}
+              </strong>
+              <small>Diferencia ÷ ingresos del período</small>
+            </div>
+            <div className="report-insight">
+              <span>Día de mayor gasto</span>
+              <strong>
+                {largestDay && largestDay.amount.gt(0)
+                  ? money(largestDay.amount)
+                  : "—"}
+              </strong>
+              <small>
+                {largestDay && largestDay.amount.gt(0)
+                  ? displayDate(`${largestDay.date}T12:00:00-04:00`)
+                  : "Sin consumos"}
+              </small>
+            </div>
+            <div className="report-insight">
+              <span>Concentración en 3 categorías</span>
+              <strong>
+                {categoryDetails.length ? `${topThreeShare.toFixed(1)} %` : "—"}
+              </strong>
+              <small>Del total positivo por categorías</small>
+            </div>
+          </section>
           <div className="reports-grid">
             <section className="panel">
               <SectionHead title="La perspectiva de tus meses">
@@ -2172,10 +2305,13 @@ function ReportsScreen({
                   </span>
                 </div>
               </SectionHead>
-              <MonthlyChart items={monthly} />
+              <div className="monthly-chart-scroll">
+                <MonthlyChart items={monthly} />
+              </div>
               <p className="chart-caption">
-                Últimos seis meses hasta el mes seleccionado. Los meses vacíos
-                se muestran con cero.
+                Últimos doce meses hasta el mes seleccionado. Selecciona un mes
+                de la tabla para ver el detalle; los meses vacíos cuentan como
+                cero.
               </p>
             </section>
             <section className="panel">
@@ -2195,6 +2331,148 @@ function ReportsScreen({
                   description="Selecciona otro rango o registra tus movimientos."
                 />
               )}
+            </section>
+          </div>
+          <div className="reports-grid lower report-details-grid">
+            <section className="panel">
+              <SectionHead title="Gastos mes a mes">
+                <span className="tiny-label">12 MESES</span>
+              </SectionHead>
+              <p className="report-table-note">
+                Gasto neto después de devoluciones · elige un mes para filtrar
+                el reporte.
+              </p>
+              <div className="report-table-scroll">
+                <table className="report-table monthly-detail-table">
+                  <thead>
+                    <tr>
+                      <th>Mes</th>
+                      <th>Gasto neto</th>
+                      <th>Ingresos</th>
+                      <th>Variación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyDetails.map((item) => {
+                      const monthLabel = new Intl.DateTimeFormat("es-BO", {
+                        month: "long",
+                        year: "numeric",
+                        timeZone: "UTC",
+                      }).format(new Date(`${item.month}-15T12:00:00Z`));
+                      const prior = report(
+                        state,
+                        monthRange(previousMonth(item.month)).from,
+                        monthRange(previousMonth(item.month)).to,
+                        account,
+                      );
+                      return (
+                        <tr key={item.month}>
+                          <td>
+                            <button
+                              className="report-row-link"
+                              aria-label={`Ver reporte de ${monthLabel}`}
+                              onClick={() => {
+                                setFrom(monthRange(item.month).from);
+                                setTo(monthRange(item.month).to);
+                              }}
+                            >
+                              {monthLabel}
+                            </button>
+                          </td>
+                          <td>
+                            <span className="report-amount">
+                              {money(item.expense)}
+                            </span>
+                            <span className="report-inline-bar">
+                              <i
+                                style={{
+                                  width: `${Math.min(100, Math.max(0, D(item.expense).div(maxMonthlyExpense).mul(100).toNumber()))}%`,
+                                }}
+                              />
+                            </span>
+                          </td>
+                          <td>{money(item.income)}</td>
+                          <td
+                            className={
+                              D(item.expense).gt(prior.expense)
+                                ? "danger"
+                                : "positive"
+                            }
+                          >
+                            {changeLabel(item.expense, prior.expense)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section className="panel">
+              <SectionHead title="Gasto por categoría">
+                <span className="tiny-label">VS. PERÍODO ANTERIOR</span>
+              </SectionHead>
+              {categoryDetails.length ? (
+                <div className="report-table-scroll">
+                  <table className="report-table category-detail-table">
+                    <thead>
+                      <tr>
+                        <th>Categoría</th>
+                        <th>Gasto neto</th>
+                        <th>Parte</th>
+                        <th>Consum.</th>
+                        <th>Cambio</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categoryDetails.map((item) => (
+                        <tr key={item.id}>
+                          <td>
+                            <button
+                              className="report-row-link"
+                              onClick={() =>
+                                onCategory(item.id, { from, to }, account)
+                              }
+                            >
+                              {item.name}
+                            </button>
+                          </td>
+                          <td>{money(item.amount)}</td>
+                          <td>
+                            {positiveCategorySpend.gt(0)
+                              ? D(item.amount)
+                                  .div(positiveCategorySpend)
+                                  .mul(100)
+                                  .toFixed(0)
+                              : "0"}{" "}
+                            %
+                          </td>
+                          <td>{item.count}</td>
+                          <td
+                            className={
+                              D(item.amount).gt(item.previous)
+                                ? "danger"
+                                : "positive"
+                            }
+                          >
+                            {changeLabel(item.amount, item.previous)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <Empty
+                  title="Sin gastos por categoría"
+                  description="Registra gastos en este período para comparar tus categorías."
+                />
+              )}
+              <p className="report-table-note">
+                El cambio compara las mismas fechas del período inmediatamente
+                anterior. La participación usa el gasto positivo neto por
+                categoría. Selecciona una categoría para ver sus movimientos.
+              </p>
             </section>
           </div>
           <div className="reports-grid lower">

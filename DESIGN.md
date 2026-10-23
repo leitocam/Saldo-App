@@ -70,7 +70,7 @@ Tarjeta abre el mismo formulario rápido con gasto equivalente en BOB, USDT real
 
 ### Reportes
 
-Período y cuenta siempre visibles. Tres resultados: ingresos, gastos y diferencia. Gráfico mensual con dos series; dona de categorías con leyenda seleccionable; gastos por cuenta, movimientos de fondos, presupuestos y metas. No usar decoraciones que parezcan datos. Las cotizaciones históricas muestran exclusivamente muestras guardadas y dejan huecos cuando no hay información.
+Período y cuenta siempre visibles. Tres resultados: ingresos, gastos y diferencia. Gráfico anual de ingresos y gastos con doce meses, tabla mensual con gasto neto, ingresos y cambio, tabla por categoría con proporción, cantidad de consumos y comparación de igual duración. Cinco estadísticas rápidas: promedio diario, ticket promedio neto, tasa de ahorro, mayor gasto en un día y concentración por categorías. Dona de categorías con leyenda seleccionable; gastos por cuenta, movimientos de fondos, presupuestos y metas. Las comparaciones identifican cuando no existe una base anterior, nunca sustituyen datos ausentes con porcentajes ficticios. No usar decoraciones que parezcan datos. Las cotizaciones históricas muestran exclusivamente muestras guardadas y dejan huecos cuando no hay información.
 
 ### Planificación y datos
 
