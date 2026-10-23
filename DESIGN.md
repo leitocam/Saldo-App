@@ -27,7 +27,7 @@ La marca es **saldo.** El punto verde expresa continuidad. El símbolo reúne do
 | Pendiente       | `#E6C478`             | Sincronización y presupuestos cercanos al límite |
 | Botón principal | Blanco / texto oscuro | Registrar, guardar y continuar                   |
 
-Las categorías pueden tener acentos suaves: menta, durazno, lavanda, azul y arena. Esos colores siempre acompañan un nombre y un icono.
+Las categorías pueden tener acentos suaves: menta, durazno, lavanda, azul, arena y una paleta ampliada. El editor ofrece una biblioteca de iconos por actividad, swatches de acceso rápido y un selector de color personalizado con su código hexadecimal visible. Los iconos tienen nombre visible, estado seleccionado y un área táctil mínima de 44 px; el catálogo se desplaza dentro del formulario en móvil para mantenerlo compacto. El color siempre acompaña un nombre y un icono y nunca es el único indicador del tipo de movimiento.
 
 ### Tipografía y proporciones
 

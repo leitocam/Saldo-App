@@ -30,6 +30,103 @@ import type {
 import type { PaymentMethod } from "@/lib/p2p";
 import { AuthResponseError, readAuthResponse } from "@/lib/auth-response";
 import { RecoveryRequest } from "./recovery";
+
+const categoryIconOptions = [
+  ["Shapes", "Otros"],
+  ["Dumbbell", "Gym"],
+  ["Utensils", "Restaurante"],
+  ["Coffee", "Café"],
+  ["Pizza", "Comida"],
+  ["Salad", "Alimentación"],
+  ["ShoppingBasket", "Supermercado"],
+  ["ShoppingBag", "Compras"],
+  ["Gamepad2", "Juegos"],
+  ["Film", "Cine"],
+  ["Music", "Música"],
+  ["Ticket", "Eventos"],
+  ["Plane", "Viajes"],
+  ["Car", "Auto"],
+  ["Bus", "Bus"],
+  ["Train", "Tren"],
+  ["Bike", "Bicicleta"],
+  ["Fuel", "Combustible"],
+  ["HeartPulse", "Salud"],
+  ["Stethoscope", "Médico"],
+  ["Pill", "Farmacia"],
+  ["House", "Hogar"],
+  ["HousePlus", "Vivienda"],
+  ["Bed", "Dormitorio"],
+  ["Sofa", "Muebles"],
+  ["Wrench", "Reparaciones"],
+  ["Hammer", "Construcción"],
+  ["Zap", "Electricidad"],
+  ["Droplets", "Agua"],
+  ["Lightbulb", "Luz"],
+  ["Wifi", "Internet"],
+  ["Smartphone", "Celular"],
+  ["Tv", "Televisión"],
+  ["WashingMachine", "Lavandería"],
+  ["Shirt", "Ropa"],
+  ["Scissors", "Cuidado personal"],
+  ["BriefcaseBusiness", "Trabajo"],
+  ["Briefcase", "Negocio"],
+  ["Laptop", "Tecnología"],
+  ["Monitor", "Computación"],
+  ["BookOpen", "Libros"],
+  ["GraduationCap", "Educación"],
+  ["Baby", "Bebé"],
+  ["PawPrint", "Mascotas"],
+  ["Dog", "Perro"],
+  ["Cat", "Gato"],
+  ["Gift", "Regalos"],
+  ["Sparkles", "Celebraciones"],
+  ["CircleParking", "Estacionamiento"],
+  ["BaggageClaim", "Equipaje"],
+  ["Sprout", "Plantas"],
+  ["TreePine", "Naturaleza"],
+  ["Footprints", "Caminata"],
+  ["Trophy", "Deportes"],
+  ["Shield", "Seguro"],
+  ["Glasses", "Óptica"],
+  ["Microscope", "Estudios"],
+  ["ReceiptText", "Factura"],
+  ["Building2", "Edificio"],
+  ["Landmark", "Banco"],
+  ["Banknote", "Dinero"],
+  ["CircleDollarSign", "Ingresos"],
+  ["Handshake", "Independiente"],
+  ["BadgeDollarSign", "Pago"],
+  ["HandCoins", "Aporte"],
+  ["PiggyBank", "Ahorro"],
+  ["Coins", "Monedas"],
+  ["Wallet", "Billetera"],
+  ["WalletCards", "Sueldo"],
+] as const;
+
+const categoryColorOptions = [
+  "#83D6AF",
+  "#70C9A0",
+  "#A6D8B5",
+  "#E8B78E",
+  "#E99C78",
+  "#F29B9B",
+  "#D88FB1",
+  "#B8A6D9",
+  "#9EAEEE",
+  "#86B9D5",
+  "#A7C4D5",
+  "#7FC4C7",
+  "#E6C478",
+  "#D7A95B",
+  "#BDADA1",
+  "#B5B7BC",
+] as const;
+
+const normalizeCategoryText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("es");
 export function MovementForm({
   initial,
   onClose,
@@ -582,6 +679,7 @@ export function EntityForm({
   const [form, setForm] = useState<Record<string, unknown>>(() =>
     initial ? { ...initial } : defaults[entity],
   );
+  const [iconSearch, setIconSearch] = useState("");
   const set = (key: string, value: unknown) =>
     setForm((f) => ({ ...f, [key]: value }));
   useEffect(() => {
@@ -786,50 +884,51 @@ export function EntityForm({
             </Field>
           </div>
           <Field label="Icono">
+            <input
+              type="search"
+              className="icon-search"
+              placeholder="Buscar: comida, transporte…"
+              value={iconSearch}
+              aria-label="Buscar iconos de categoría"
+              onChange={(e) => setIconSearch(e.target.value)}
+            />
             <div className="icon-picker">
-              {[
-                "Dumbbell",
-                "Utensils",
-                "ShoppingBasket",
-                "Gamepad2",
-                "Zap",
-                "Car",
-                "HeartPulse",
-                "House",
-                "Shapes",
-                "BriefcaseBusiness",
-                "Laptop",
-                "Plane",
-              ].map((icon) => (
-                <button
-                  type="button"
-                  key={icon}
-                  aria-label={icon}
-                  onClick={() => set("icon", icon)}
-                  className={form.icon === icon ? "selected" : ""}
-                >
-                  <Icon name={icon} />
-                </button>
-              ))}
+              {categoryIconOptions
+                .filter(([, label]) =>
+                  normalizeCategoryText(label).includes(
+                    normalizeCategoryText(iconSearch.trim()),
+                  ),
+                )
+                .map(([icon, label]) => (
+                  <button
+                    type="button"
+                    key={icon}
+                    aria-label={label}
+                    aria-pressed={form.icon === icon}
+                    title={label}
+                    onClick={() => set("icon", icon)}
+                    className={form.icon === icon ? "selected" : ""}
+                  >
+                    <Icon name={icon} />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              {!categoryIconOptions.some(([, label]) =>
+                normalizeCategoryText(label).includes(
+                  normalizeCategoryText(iconSearch.trim()),
+                ),
+              ) && <p className="icon-picker-empty">No encontramos iconos.</p>}
             </div>
           </Field>
           <Field label="Color">
             <div className="color-picker">
-              {[
-                "#83D6AF",
-                "#E8B78E",
-                "#B8A6D9",
-                "#9EAEEE",
-                "#E6C478",
-                "#A7C4D5",
-                "#F29B9B",
-                "#B5B7BC",
-              ].map((color) => (
+              {categoryColorOptions.map((color) => (
                 <button
                   type="button"
                   key={color}
                   style={{ background: color }}
-                  aria-label={color}
+                  aria-label={`Elegir color ${color}`}
+                  aria-pressed={form.color === color}
                   onClick={() => set("color", color)}
                   className={form.color === color ? "selected" : ""}
                 >
@@ -837,6 +936,16 @@ export function EntityForm({
                 </button>
               ))}
             </div>
+            <label className="custom-color-control">
+              <span>Color personalizado</span>
+              <input
+                type="color"
+                value={String(form.color ?? "#83D6AF")}
+                aria-label="Elegir un color personalizado"
+                onChange={(e) => set("color", e.target.value.toUpperCase())}
+              />
+              <code>{String(form.color ?? "#83D6AF").toUpperCase()}</code>
+            </label>
           </Field>
           <label className="checkbox-row">
             <input
